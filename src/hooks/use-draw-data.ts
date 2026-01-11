@@ -6,7 +6,9 @@ export function useDrawData() {
   const query = useQuery({
     queryKey: ["draws"],
     queryFn: fetchLatestDraws,
-    staleTime: 1000 * 60 * 60, // 1 hour
+    staleTime: 0, // Always consider data stale
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
   const draws = query.data ?? [];
   const latestDraw = draws[0] ?? null;
@@ -14,7 +16,13 @@ export function useDrawData() {
   const currentYear = new Date().getFullYear();
   const yearStart = startOfYear(new Date());
   const totalItasYearToDate = draws
-    .filter(d => isAfter(parseISO(d.date), yearStart))
+    .filter(d => {
+      try {
+        return isAfter(parseISO(d.date), yearStart);
+      } catch {
+        return false;
+      }
+    })
     .reduce((acc, d) => acc + d.itasIssued, 0);
   return {
     ...query,
@@ -22,6 +30,7 @@ export function useDrawData() {
     latestDraw,
     previousDraw,
     totalItasYearToDate,
-    currentYear
+    currentYear,
+    isInitialLoading: query.isLoading && !query.isFetching, // Specifically for the very first load
   };
 }

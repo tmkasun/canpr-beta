@@ -1,9 +1,9 @@
 import { DrawEntry, ProgramType } from "@shared/types";
 import { MOCK_DRAWS } from "@shared/mock-canada-data";
 import { parse, format, isValid } from "date-fns";
-const IRCC_JSON_URL = "https://www.canada.ca/content/dam/ircc/documents/json/ee_rounds_123_en.json";
+import { api } from "./api-client";
 const CACHE_KEY = "maple_metrics_draw_cache";
-const CACHE_TTL = 3600000; // 1 hour
+const CACHE_TTL = 300000; // Reduce to 5 minutes to favor freshness
 interface IrccDraw {
   roundNumber: string;
   roundDate: string;
@@ -21,33 +21,40 @@ function determineProgramType(name: string, type: string): ProgramType {
   if (combined.includes("canadian experience")) return "CEC";
   if (combined.includes("federal skilled worker")) return "FSW";
   if (combined.includes("federal skilled trades")) return "FST";
-  if (combined.includes("french") || combined.includes("stem") || combined.includes("healthcare") || combined.includes("transport") || combined.includes("agriculture") || combined.includes("trade")) {
+  if (
+    combined.includes("french") || 
+    combined.includes("stem") || 
+    combined.includes("healthcare") || 
+    combined.includes("transport") || 
+    combined.includes("agriculture") || 
+    combined.includes("trade") ||
+    combined.includes("category-based")
+  ) {
     return "Category-based";
   }
   return "General";
 }
 export async function fetchLatestDraws(): Promise<DrawEntry[]> {
   try {
-    // Check Cache
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
-      const { timestamp, data } = JSON.parse(cached);
-      if (Date.now() - timestamp < CACHE_TTL) {
-        return data;
-      }
-    }
-    const response = await fetch(IRCC_JSON_URL);
-    if (!response.ok) throw new Error("Failed to fetch IRCC data");
-    const json = (await response.json()) as IrccResponse;
+    // Attempt to fetch from internal proxy
+    const json = await api<IrccResponse>('/api/ircc-data');
     if (!json.rounds || !Array.isArray(json.rounds)) {
-      throw new Error("Invalid IRCC JSON format");
+      throw new Error("Invalid response structure from IRCC proxy");
     }
     const normalized: DrawEntry[] = json.rounds.map((r, idx) => {
-      // IRCC dates are often "May 31, 2024"
-      let dateIso = new Date().toISOString();
-      const parsedDate = parse(r.roundDate, "MMMM d, yyyy", new Date());
-      if (isValid(parsedDate)) {
-        dateIso = format(parsedDate, "yyyy-MM-dd");
+      let dateIso = "";
+      // Attempt multiple date formats if needed
+      const formats = ["MMMM d, yyyy", "yyyy-MM-dd"];
+      for (const fmt of formats) {
+        const parsedDate = parse(r.roundDate, fmt, new Date());
+        if (isValid(parsedDate)) {
+          dateIso = format(parsedDate, "yyyy-MM-dd");
+          break;
+        }
+      }
+      if (!dateIso) {
+        console.warn(`Unparseable date in round ${r.roundNumber}: ${r.roundDate}`);
+        dateIso = new Date().toISOString().split('T')[0];
       }
       return {
         id: `ircc-${r.roundNumber || idx}`,
@@ -59,14 +66,22 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
         description: r.roundName !== r.roundType ? r.roundName : undefined
       };
     });
-    // Cache results
+    // Cache locally briefly for session stability
     localStorage.setItem(CACHE_KEY, JSON.stringify({
       timestamp: Date.now(),
       data: normalized
     }));
     return normalized;
   } catch (error) {
-    console.error("IRCC Fetch Error, falling back to mocks:", error);
+    console.error("IRCC Data Service Error:", error);
+    // Fallback to cache if network fails
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const { data } = JSON.parse(cached);
+      console.warn("Serving stale data from cache due to fetch failure");
+      return data;
+    }
+    // Ultimate fallback
     return MOCK_DRAWS;
   }
 }
