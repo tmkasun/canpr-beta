@@ -1,13 +1,13 @@
 import React, { useMemo } from 'react';
-import { 
-  Users, 
-  Calendar, 
-  Trophy, 
-  Activity, 
+import {
+  Users,
+  Calendar,
+  Trophy,
+  Activity,
   ArrowRight,
-  TrendingUp
+  Bell
 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, differenceInDays } from 'date-fns';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { ScoreTrendChart } from '@/components/dashboard/ScoreTrendChart';
@@ -16,8 +16,11 @@ import { MOCK_DRAWS } from '@shared/mock-canada-data';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 export function HomePage() {
   const latestDraw = useMemo(() => MOCK_DRAWS[0], []);
+  const isNewDraw = useMemo(() => 
+    differenceInDays(new Date(), parseISO(latestDraw.date)) <= 14, [latestDraw]);
   const stats = useMemo(() => {
     const totalItas = MOCK_DRAWS
       .filter(d => d.date.startsWith('2024'))
@@ -31,62 +34,60 @@ export function HomePage() {
       program: latestDraw.programType,
       crsTrend: {
         value: Math.abs(crsDiff),
-        isUp: crsDiff < 0 // In CRS context, "down" is usually good (easier to get PR)
+        isUp: crsDiff < 0
       }
     };
   }, [latestDraw]);
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 }
+  };
   return (
     <AppLayout container>
-      <div className="space-y-8 animate-fade-in">
-        {/* Header Section */}
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+        className="space-y-8"
+      >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Executive Dashboard</h1>
+            <div className="flex items-center gap-2 mb-1">
+              <h1 className="text-3xl font-bold tracking-tight">Executive Dashboard</h1>
+              {isNewDraw && (
+                <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white border-none animate-pulse">
+                  <Bell className="w-3 h-3 mr-1" /> New Draw
+                </Badge>
+              )}
+            </div>
             <p className="text-muted-foreground">Comprehensive insights into Canada Express Entry draws</p>
           </div>
-          <div className="flex items-center gap-2">
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <Link to="/calculator">
               <Button className="bg-red-600 hover:bg-red-700 text-white shadow-primary">
                 Run Score Simulator
               </Button>
             </Link>
-          </div>
+          </motion.div>
         </div>
-        {/* Stats Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard 
-            title="Latest Cutoff Score"
-            value={stats.latestScore}
-            icon={Trophy}
-            description={`Program: ${stats.program}`}
-          />
-          <StatCard 
-            title="Total ITAs (2024)"
-            value={stats.totalItas.toLocaleString()}
-            icon={Users}
-            description="Invitations issued YTD"
-            trend={{ value: 12, isUp: true }}
-          />
-          <StatCard 
-            title="Last Draw Date"
-            value={stats.lastDate}
-            icon={Calendar}
-            description="Official IRCC update"
-          />
-          <StatCard 
-            title="System Health"
-            value="Active"
-            icon={Activity}
-            description="Processing times stable"
-          />
-        </div>
-        {/* Charts Row */}
-        <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
+        <motion.div variants={itemVariants} className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <StatCard title="Latest Cutoff Score" value={stats.latestScore} icon={Trophy} description={`Program: ${stats.program}`} />
+          <StatCard title="Total ITAs (2024)" value={stats.totalItas.toLocaleString()} icon={Users} description="Invitations issued YTD" trend={{ value: 12, isUp: true }} />
+          <StatCard title="Last Draw Date" value={stats.lastDate} icon={Calendar} description="Official IRCC update" />
+          <StatCard title="System Health" value="Active" icon={Activity} description="Processing times stable" />
+        </motion.div>
+        <motion.div variants={itemVariants} className="grid gap-6 grid-cols-1 lg:grid-cols-3">
           <ScoreTrendChart data={MOCK_DRAWS} />
           <InvitationBarChart data={MOCK_DRAWS} />
-        </div>
-        {/* Recent Draws List Summary */}
-        <div className="rounded-xl border bg-card shadow-sm p-6">
+        </motion.div>
+        <motion.div variants={itemVariants} className="rounded-xl border bg-card shadow-soft p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold">Recent Activity</h2>
             <Link to="/history">
@@ -97,23 +98,23 @@ export function HomePage() {
           </div>
           <div className="space-y-4">
             {MOCK_DRAWS.slice(0, 5).map((draw) => (
-              <div key={draw.id} className="flex items-center justify-between p-4 rounded-lg bg-muted/30 transition-colors hover:bg-muted/50 border border-transparent hover:border-border">
+              <div key={draw.id} className="flex items-center justify-between p-4 rounded-lg bg-muted/30 transition-all hover:bg-muted/50 border border-transparent hover:border-border hover:shadow-sm">
                 <div className="flex items-center gap-4">
                   <div className="h-10 w-10 rounded-full bg-background flex items-center justify-center border shadow-sm text-xs font-bold text-red-600">
                     #{draw.drawNumber}
                   </div>
                   <div>
-                    <div className="font-semibold">{draw.programType} Draw</div>
+                    <div className="font-semibold text-sm">{draw.programType} Draw</div>
                     <div className="text-xs text-muted-foreground">{format(parseISO(draw.date), "MMMM d, yyyy")}</div>
                   </div>
                 </div>
-                <div className="flex items-center gap-8">
-                  <div className="text-right">
-                    <div className="text-xs text-muted-foreground">ITAs</div>
-                    <div className="font-bold">{draw.itasIssued.toLocaleString()}</div>
+                <div className="flex items-center gap-6">
+                  <div className="text-right hidden sm:block">
+                    <div className="text-[10px] uppercase text-muted-foreground">ITAs</div>
+                    <div className="font-bold text-sm">{draw.itasIssued.toLocaleString()}</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xs text-muted-foreground">Score</div>
+                    <div className="text-[10px] uppercase text-muted-foreground">Score</div>
                     <Badge variant="secondary" className="font-bold bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
                       {draw.crsScore}
                     </Badge>
@@ -122,8 +123,8 @@ export function HomePage() {
               </div>
             ))}
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </AppLayout>
   );
 }

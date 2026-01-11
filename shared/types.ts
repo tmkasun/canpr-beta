@@ -36,3 +36,13 @@ export interface DrawStatistics {
   lastDrawDate: string;
   itaGrowthPercentage: number;
 }
+export interface CRSProfile {
+  id: string;
+  label: string;
+  date: string;
+  score: number;
+  age: string;
+  education: string;
+  language: string;
+  experience: string;
+}

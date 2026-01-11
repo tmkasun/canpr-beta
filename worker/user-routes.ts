@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import type { Env } from './core-utils';
-import { UserEntity, ChatBoardEntity } from "./entities";
+import { UserEntity, ChatBoardEntity, CRSProfileEntity } from "./entities";
 import { ok, bad, notFound, isStr } from './core-utils';
-
+import { CRSProfile } from "@shared/types";
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.get('/api/test', (c) => c.json({ success: true, data: { name: 'CF Workers Demo' }}));
 
@@ -71,5 +71,25 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const list = ids?.filter(isStr) ?? [];
     if (list.length === 0) return bad(c, 'ids required');
     return ok(c, { deletedCount: await ChatBoardEntity.deleteMany(c.env, list), ids: list });
+  });
+
+  // CRS PROFILES
+  app.get('/api/profiles', async (c) => {
+    const cq = c.req.query('cursor');
+    const lq = c.req.query('limit');
+    const page = await CRSProfileEntity.list(c.env, cq ?? null, lq ? Math.max(1, (Number(lq) | 0)) : undefined);
+    return ok(c, page);
+  });
+
+  app.post('/api/profiles', async (c) => {
+    const profile = (await c.req.json()) as CRSProfile;
+    if (!profile.id) profile.id = crypto.randomUUID();
+    profile.date = new Date().toISOString();
+    return ok(c, await CRSProfileEntity.create(c.env, profile));
+  });
+
+  app.delete('/api/profiles/:id', async (c) => {
+    const id = c.req.param('id');
+    return ok(c, { id, deleted: await CRSProfileEntity.delete(c.env, id) });
   });
 }
