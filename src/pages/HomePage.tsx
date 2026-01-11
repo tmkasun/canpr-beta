@@ -12,25 +12,22 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { ScoreTrendChart } from '@/components/dashboard/ScoreTrendChart';
 import { InvitationBarChart } from '@/components/dashboard/InvitationBarChart';
-import { MOCK_DRAWS } from '@shared/mock-canada-data';
+import { useDrawData } from '@/hooks/use-draw-data';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 export function HomePage() {
-  const latestDraw = MOCK_DRAWS[0];
-  const previousDraw = MOCK_DRAWS[1];
+  const { draws, latestDraw, previousDraw, totalItasYearToDate, isLoading, currentYear } = useDrawData();
   const isNewDraw = latestDraw ? differenceInDays(new Date(), parseISO(latestDraw.date)) <= 14 : false;
-  const stats = {
-    totalItas: MOCK_DRAWS.filter(d => d.date.startsWith('2024')).reduce((acc, d) => acc + d.itasIssued, 0),
-    latestScore: latestDraw?.crsScore ?? 0,
-    prevScore: previousDraw?.crsScore ?? 0,
-    lastDate: latestDraw ? format(parseISO(latestDraw.date), 'MMM d, yyyy') : 'No Data',
-    program: latestDraw?.programType ?? 'N/A',
-  };
-  const crsDiff = stats.latestScore - stats.prevScore;
+  const latestScore = latestDraw?.crsScore ?? 0;
+  const prevScore = previousDraw?.crsScore ?? 0;
+  const lastDate = latestDraw ? format(parseISO(latestDraw.date), 'MMM d, yyyy') : 'No Data';
+  const program = latestDraw?.programType ?? 'N/A';
+  const crsDiff = latestScore - prevScore;
   const crsTrendValue = Math.abs(crsDiff);
-  const isUp = crsDiff < 0; // In CRS, lower is usually "better" or trending towards accessibility
+  const isUp = crsDiff < 0; // Lower CRS is better for accessibility
   const containerVariants = {
     hidden: { opacity: 0 },
     show: {
@@ -42,9 +39,25 @@ export function HomePage() {
     hidden: { opacity: 0, y: 20 },
     show: { opacity: 1, y: 0 }
   };
+  if (isLoading) {
+    return (
+      <AppLayout container>
+        <div className="space-y-8 animate-pulse">
+          <div className="h-12 w-64 bg-muted rounded-lg" />
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {Array(4).fill(0).map((_, i) => <div key={i} className="h-32 bg-muted rounded-xl" />)}
+          </div>
+          <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
+            <div className="lg:col-span-2 h-[400px] bg-muted rounded-xl" />
+            <div className="h-[400px] bg-muted rounded-xl" />
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
   return (
     <AppLayout container>
-      <motion.div 
+      <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="show"
@@ -71,26 +84,26 @@ export function HomePage() {
           </motion.div>
         </div>
         <motion.div variants={itemVariants} className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard 
-            title="Latest Cutoff Score" 
-            value={stats.latestScore} 
-            icon={Trophy} 
-            description={`Program: ${stats.program}`}
+          <StatCard
+            title="Latest Cutoff Score"
+            value={latestScore}
+            icon={Trophy}
+            description={`Program: ${program}`}
             trend={{ value: crsTrendValue, isUp }}
           />
-          <StatCard 
-            title="Total ITAs (2024)" 
-            value={stats.totalItas.toLocaleString()} 
-            icon={Users} 
-            description="Invitations issued YTD" 
-            trend={{ value: 12, isUp: true }} 
+          <StatCard
+            title={`Total ITAs (${currentYear})`}
+            value={totalItasYearToDate.toLocaleString()}
+            icon={Users}
+            description="Invitations issued YTD"
+            trend={{ value: 12, isUp: true }}
           />
-          <StatCard title="Last Draw Date" value={stats.lastDate} icon={Calendar} description="Official IRCC update" />
+          <StatCard title="Last Draw Date" value={lastDate} icon={Calendar} description="Official IRCC update" />
           <StatCard title="System Health" value="Active" icon={Activity} description="Processing times stable" />
         </motion.div>
         <motion.div variants={itemVariants} className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-          <ScoreTrendChart data={MOCK_DRAWS} />
-          <InvitationBarChart data={MOCK_DRAWS} />
+          <ScoreTrendChart data={draws} />
+          <InvitationBarChart data={draws} />
         </motion.div>
         <motion.div variants={itemVariants} className="rounded-xl border bg-card shadow-soft p-6">
           <div className="flex items-center justify-between mb-6">
@@ -102,7 +115,7 @@ export function HomePage() {
             </Link>
           </div>
           <div className="space-y-4">
-            {MOCK_DRAWS.slice(0, 5).map((draw) => (
+            {draws.slice(0, 5).map((draw) => (
               <div key={draw.id} className="flex items-center justify-between p-4 rounded-lg bg-muted/30 transition-all hover:bg-muted/50 border border-transparent hover:border-border hover:shadow-sm">
                 <div className="flex items-center gap-4">
                   <div className="h-10 w-10 rounded-full bg-background flex items-center justify-center border shadow-sm text-xs font-bold text-red-600">

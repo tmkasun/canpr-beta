@@ -1,116 +1,72 @@
 import { DrawEntry, ProgramType } from "@shared/types";
 import { MOCK_DRAWS } from "@shared/mock-canada-data";
-import { parse, format, isValid, parseISO } from "date-fns";
+import { parse, format, isValid } from "date-fns";
+const IRCC_JSON_URL = "https://www.canada.ca/content/dam/ircc/documents/json/ee_rounds_123_en.json";
 const CACHE_KEY = "maple_metrics_draw_cache";
-const PROXY_URL = "/api/ircc-proxy";
+const CACHE_TTL = 3600000; // 1 hour
 interface IrccDraw {
-  drawNumber: string | number;
-  drawDate: string;
-  drawName: string;
-  drawSize: string | number;
-  drawCRS: string | number;
-  drawDateFull?: string;
+  roundNumber: string;
+  roundDate: string;
+  roundType: string;
+  roundName: string;
+  roundInvitations: string;
+  roundLowestScore: string;
 }
 interface IrccResponse {
   rounds: IrccDraw[];
 }
-function stripHtml(html: string): string {
-  if (!html) return "";
-  return html.replace(/<[^>]*>?/gm, "").trim();
-}
-function determineProgramType(name: string): ProgramType {
-  const n = name.toLowerCase();
-  if (n.includes("provincial nominee") || n.includes("pnp")) return "PNP";
-  if (n.includes("canadian experience") || n.includes("cec")) return "CEC";
-  if (n.includes("federal skilled worker") || n.includes("fsw")) return "FSW";
-  if (n.includes("federal skilled trades") || n.includes("fst")) return "FST";
-  const categoryKeywords = ["stem", "healthcare", "french", "transport", "trade", "agriculture", "category-based"];
-  if (categoryKeywords.some(kw => n.includes(kw))) {
+function determineProgramType(name: string, type: string): ProgramType {
+  const combined = (name + " " + type).toLowerCase();
+  if (combined.includes("provincial nominee")) return "PNP";
+  if (combined.includes("canadian experience")) return "CEC";
+  if (combined.includes("federal skilled worker")) return "FSW";
+  if (combined.includes("federal skilled trades")) return "FST";
+  if (combined.includes("french") || combined.includes("stem") || combined.includes("healthcare") || combined.includes("transport") || combined.includes("agriculture") || combined.includes("trade")) {
     return "Category-based";
   }
   return "General";
 }
-function safeParseInt(val: string | number | undefined, fallback = 0): number {
-  if (val === undefined || val === null) return fallback;
-  const cleanStr = val.toString().replace(/,/g, "").replace(/[^0-9.]/g, "").trim();
-  const parsed = parseInt(cleanStr, 10);
-  return isNaN(parsed) ? fallback : parsed;
-}
 export async function fetchLatestDraws(): Promise<DrawEntry[]> {
   try {
-    const response = await fetch(PROXY_URL);
-    if (!response.ok) {
-      throw new Error(`Proxy status: ${response.status}`);
-    }
-    const json = (await response.json()) as IrccResponse;
-    if (!json || !json.rounds || !Array.isArray(json.rounds)) {
-      throw new Error("Invalid structure from IRCC proxy");
-    }
-    const normalized: DrawEntry[] = json.rounds.reduce((acc: DrawEntry[], r, idx) => {
-      try {
-        if (!r.drawDate && !r.drawName) return acc;
-        const cleanName = stripHtml(r.drawName || "Express Entry Round");
-        const drawNum = safeParseInt(r.drawNumber, idx + 1000);
-        const rawDate = r.drawDate?.trim() || "";
-        if (!rawDate) return acc;
-        // Clean invisible characters
-        const sanitizedDate = rawDate
-          .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, ' ')
-          .replace(/\s+/g, ' ')
-          .replace(/\s+(EST|EDT|UTC|PST|PDT|GMT).*$/, "");
-        let dateIso = "";
-        const parsedIso = parseISO(sanitizedDate);
-        if (isValid(parsedIso)) {
-          dateIso = format(parsedIso, "yyyy-MM-dd");
-        } else {
-          const formats = ["MMMM d, yyyy", "MMM d, yyyy", "yyyy-MM-dd", "dd/MM/yyyy", "d MMMM yyyy"];
-          for (const fmt of formats) {
-            try {
-              const p = parse(sanitizedDate, fmt, new Date());
-              if (isValid(p)) {
-                dateIso = format(p, "yyyy-MM-dd");
-                break;
-              }
-            } catch { continue; }
-          }
-        }
-        if (!dateIso) return acc;
-        const crsValue = safeParseInt(r.drawCRS);
-        if (crsValue < 0 || crsValue > 1200) return acc;
-        const entry: DrawEntry = {
-          id: `ircc-${drawNum}-${idx}`,
-          drawNumber: drawNum,
-          date: dateIso,
-          programType: determineProgramType(cleanName),
-          itasIssued: safeParseInt(r.drawSize),
-          crsScore: crsValue,
-          description: cleanName
-        };
-        acc.push(entry);
-      } catch (innerError) {
-        console.warn("[DATA SERVICE] Skip malformed record:", innerError);
-      }
-      return acc;
-    }, []);
-    const sorted = [...normalized].sort((a, b) =>
-      parseISO(b.date).getTime() - parseISO(a.date).getTime()
-    );
-    if (sorted.length > 0) {
-      localStorage.setItem(CACHE_KEY, JSON.stringify({
-        timestamp: Date.now(),
-        data: sorted
-      }));
-    }
-    return sorted;
-  } catch (error) {
-    console.warn("[DATA SERVICE] Remote fetch failed, using cache:", error);
+    // Check Cache
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed?.data)) return parsed.data;
-      } catch { /* ignored */ }
+      const { timestamp, data } = JSON.parse(cached);
+      if (Date.now() - timestamp < CACHE_TTL) {
+        return data;
+      }
     }
-    return [...MOCK_DRAWS].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
+    const response = await fetch(IRCC_JSON_URL);
+    if (!response.ok) throw new Error("Failed to fetch IRCC data");
+    const json = (await response.json()) as IrccResponse;
+    if (!json.rounds || !Array.isArray(json.rounds)) {
+      throw new Error("Invalid IRCC JSON format");
+    }
+    const normalized: DrawEntry[] = json.rounds.map((r, idx) => {
+      // IRCC dates are often "May 31, 2024"
+      let dateIso = new Date().toISOString();
+      const parsedDate = parse(r.roundDate, "MMMM d, yyyy", new Date());
+      if (isValid(parsedDate)) {
+        dateIso = format(parsedDate, "yyyy-MM-dd");
+      }
+      return {
+        id: `ircc-${r.roundNumber || idx}`,
+        drawNumber: parseInt(r.roundNumber) || 0,
+        date: dateIso,
+        programType: determineProgramType(r.roundName, r.roundType),
+        itasIssued: parseInt(r.roundInvitations.replace(/,/g, "")) || 0,
+        crsScore: parseInt(r.roundLowestScore) || 0,
+        description: r.roundName !== r.roundType ? r.roundName : undefined
+      };
+    });
+    // Cache results
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      timestamp: Date.now(),
+      data: normalized
+    }));
+    return normalized;
+  } catch (error) {
+    console.error("IRCC Fetch Error, falling back to mocks:", error);
+    return MOCK_DRAWS;
   }
 }

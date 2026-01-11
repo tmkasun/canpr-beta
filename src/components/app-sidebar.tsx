@@ -1,11 +1,12 @@
 import React from "react";
-import { 
-  LayoutDashboard, 
-  History, 
-  Calculator, 
-  FileText, 
-  Settings, 
-  Leaf 
+import {
+  LayoutDashboard,
+  History,
+  Calculator,
+  FileText,
+  Settings,
+  Leaf,
+  RefreshCw
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import {
@@ -17,8 +18,11 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  useSidebar
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import { useDrawData } from "@/hooks/use-draw-data";
+import { format } from "date-fns";
 const NAV_ITEMS = [
   { title: "Dashboard", icon: LayoutDashboard, path: "/" },
   { title: "Historical Data", icon: History, path: "/history" },
@@ -27,6 +31,9 @@ const NAV_ITEMS = [
 ];
 export function AppSidebar(): JSX.Element {
   const location = useLocation();
+  const { dataUpdatedAt, isFetching } = useDrawData();
+  const { state } = useSidebar();
+  const isExpanded = state === "expanded";
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
@@ -65,9 +72,22 @@ export function AppSidebar(): JSX.Element {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="border-t p-4">
-        <div className="flex items-center gap-3 px-2">
-          <Settings className="size-4 text-muted-foreground" />
-          <span className="text-xs font-medium text-muted-foreground">Settings</span>
+        <div className="flex flex-col gap-3 px-2">
+          {isExpanded && (
+            <div className="flex items-center gap-2">
+              <div className={cn("size-2 rounded-full", isFetching ? "bg-amber-500 animate-pulse" : "bg-emerald-500")} />
+              <div className="flex flex-col">
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase">Live IRCC Sync</span>
+                <span className="text-[9px] text-muted-foreground/60 tabular-nums">
+                  {dataUpdatedAt ? format(new Date(dataUpdatedAt), "HH:mm:ss") : "Pending..."}
+                </span>
+              </div>
+            </div>
+          )}
+          <div className="flex items-center gap-3">
+            <Settings className="size-4 text-muted-foreground" />
+            {isExpanded && <span className="text-xs font-medium text-muted-foreground">Settings</span>}
+          </div>
         </div>
       </SidebarFooter>
     </Sidebar>

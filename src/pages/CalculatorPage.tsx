@@ -6,15 +6,17 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Calculator, Info, CheckCircle2, Save, Trash2, History, ArrowRight, Sparkles } from 'lucide-react';
-import { MOCK_DRAWS } from '@shared/mock-canada-data';
+import { Calculator, Info, CheckCircle2, Save, Trash2, History, ArrowRight, Sparkles, Loader2 } from 'lucide-react';
+import { useDrawData } from '@/hooks/use-draw-data';
 import { api } from '@/lib/api-client';
 import { CRSProfile } from '@shared/types';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 export function CalculatorPage() {
+  const { latestDraw, isLoading: drawsLoading } = useDrawData();
   const [age, setAge] = useState<string>("25");
   const [edu, setEdu] = useState<string>("master");
   const [lang, setLang] = useState<string>("high");
@@ -23,10 +25,10 @@ export function CalculatorPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [savedProfiles, setSavedProfiles] = useState<CRSProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const latestCutoff = MOCK_DRAWS[0].crsScore;
+  const latestCutoff = latestDraw?.crsScore ?? 500;
   const score = useMemo(() => {
     let total = 0;
-    const ageVal = parseInt(age);
+    const ageVal = parseInt(age) || 0;
     if (ageVal >= 20 && ageVal <= 29) total += 110;
     else if (ageVal >= 30) total += Math.max(0, 110 - (ageVal - 29) * 5);
     if (edu === "phd") total += 150;
@@ -159,8 +161,8 @@ export function CalculatorPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button 
-                  onClick={handleSave} 
+                <Button
+                  onClick={handleSave}
                   disabled={isSaving}
                   className="w-full bg-red-600 hover:bg-red-700 text-white gap-2"
                 >
@@ -209,9 +211,9 @@ export function CalculatorPage() {
                             <div className="text-right">
                               <div className="text-xs font-bold text-red-600">{p.score} pts</div>
                             </div>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               onClick={() => handleDelete(p.id)}
                               className="h-8 w-8 text-muted-foreground hover:text-rose-600"
                             >
@@ -246,12 +248,14 @@ export function CalculatorPage() {
                   <div className="space-y-2 pt-4 border-t border-white/20">
                     <div className="flex justify-between items-center text-sm">
                       <span>Latest Cutoff:</span>
-                      <span className="font-bold">{latestCutoff}</span>
+                      <span className="font-bold">
+                        {drawsLoading ? <Loader2 className="h-4 w-4 animate-spin inline ml-2" /> : latestCutoff}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span>Target Gap:</span>
                       <span className="font-bold">
-                        {latestCutoff - score > 0 ? `-${latestCutoff - score}` : `+${Math.abs(latestCutoff - score)}`}
+                        {drawsLoading ? "..." : (latestCutoff - score > 0 ? `-${latestCutoff - score}` : `+${Math.abs(latestCutoff - score)}`)}
                       </span>
                     </div>
                   </div>

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { MOCK_DRAWS } from '@shared/mock-canada-data';
+import { useDrawData } from '@/hooks/use-draw-data';
 import {
   Table,
   TableBody,
@@ -20,7 +20,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
-import { Search, Filter, Download, FileX, ArrowUpDown, X } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Search, Filter, Download, FileX, ArrowUpDown, X, RefreshCw } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ProgramType, DrawEntry } from '@shared/types';
 import { toast } from 'sonner';
@@ -29,11 +30,12 @@ type SortConfig = {
   direction: 'asc' | 'desc';
 } | null;
 export function HistoryPage() {
+  const { draws, isLoading, refetch, isRefetching } = useDrawData();
   const [search, setSearch] = useState("");
   const [programFilter, setProgramFilter] = useState<string>("all");
   const [sort, setSort] = useState<SortConfig>({ key: 'date', direction: 'desc' });
   const filteredDraws = useMemo(() => {
-    let result = MOCK_DRAWS.filter((draw) => {
+    let result = draws.filter((draw) => {
       const matchesSearch = draw.drawNumber.toString().includes(search) ||
                            (draw.description?.toLowerCase().includes(search.toLowerCase()) ?? false);
       const matchesProgram = programFilter === "all" || draw.programType === programFilter;
@@ -56,7 +58,7 @@ export function HistoryPage() {
       });
     }
     return result;
-  }, [search, programFilter, sort]);
+  }, [draws, search, programFilter, sort]);
   const handleSort = (key: keyof DrawEntry) => {
     setSort((prev) => {
       if (prev?.key === key) {
@@ -66,8 +68,8 @@ export function HistoryPage() {
     });
   };
   const handleExport = () => {
-    toast.success("Preparing CSV export...", {
-      description: "Historical data file will download shortly."
+    toast.success("Preparing Live Dataset Export...", {
+      description: `Including all ${filteredDraws.length} filtered draws.`
     });
   };
   const clearFilters = () => {
@@ -111,9 +113,14 @@ export function HistoryPage() {
             <h1 className="text-3xl font-bold tracking-tight text-foreground">Historical Data</h1>
             <p className="text-muted-foreground">Complete archive of Canada Express Entry invitations and cutoff scores.</p>
           </div>
-          <Button variant="outline" onClick={handleExport} className="gap-2">
-            <Download className="h-4 w-4" /> Export CSV
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isRefetching}>
+              <RefreshCw className={isRefetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+            </Button>
+            <Button variant="outline" onClick={handleExport} className="gap-2">
+              <Download className="h-4 w-4" /> Export CSV
+            </Button>
+          </div>
         </div>
         <div className="flex flex-col md:flex-row gap-4 items-center bg-card p-4 rounded-xl border shadow-sm">
           <div className="relative w-full md:max-w-sm">
@@ -125,7 +132,7 @@ export function HistoryPage() {
               onChange={(e) => setSearch(e.target.value)}
             />
             {search && (
-              <button 
+              <button
                 onClick={() => setSearch("")}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
@@ -160,7 +167,7 @@ export function HistoryPage() {
           <Table>
             <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableHead 
+                <TableHead
                   className="w-[120px] cursor-pointer hover:bg-muted/80 transition-colors"
                   onClick={() => handleSort('drawNumber')}
                 >
@@ -168,7 +175,7 @@ export function HistoryPage() {
                     Draw # <ArrowUpDown className="h-3 w-3" />
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="cursor-pointer hover:bg-muted/80 transition-colors"
                   onClick={() => handleSort('date')}
                 >
@@ -177,7 +184,7 @@ export function HistoryPage() {
                   </div>
                 </TableHead>
                 <TableHead>Program Type</TableHead>
-                <TableHead 
+                <TableHead
                   className="text-right cursor-pointer hover:bg-muted/80 transition-colors"
                   onClick={() => handleSort('itasIssued')}
                 >
@@ -185,7 +192,7 @@ export function HistoryPage() {
                     ITAs Issued <ArrowUpDown className="h-3 w-3" />
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="text-right cursor-pointer hover:bg-muted/80 transition-colors"
                   onClick={() => handleSort('crsScore')}
                 >
@@ -196,7 +203,17 @@ export function HistoryPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredDraws.length > 0 ? (
+              {isLoading ? (
+                Array(10).fill(0).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                    <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                    <TableCell className="text-right"><Skeleton className="h-6 w-12 ml-auto rounded-full" /></TableCell>
+                  </TableRow>
+                ))
+              ) : filteredDraws.length > 0 ? (
                 filteredDraws.map((draw) => (
                   <TableRow key={draw.id} className="hover:bg-muted/30 transition-colors">
                     <TableCell className="font-bold text-red-600">#{draw.drawNumber}</TableCell>
@@ -236,8 +253,8 @@ export function HistoryPage() {
                       <p className="text-sm text-muted-foreground max-w-[300px] mt-1">
                         We couldn't find any draws matching your current filters. Try adjusting your search or program type.
                       </p>
-                      <Button 
-                        variant="link" 
+                      <Button
+                        variant="link"
                         onClick={clearFilters}
                         className="mt-4 text-red-600"
                       >
