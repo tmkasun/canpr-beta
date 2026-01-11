@@ -18,13 +18,13 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, Filter, Download, FileX, ArrowUpDown, X, RefreshCw, Clock } from 'lucide-react';
+import { Search, Filter, Download, FileX, ArrowUpDown, X, RefreshCw, Clock, Eraser } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ProgramType, DrawEntry } from '@shared/types';
 import { toast } from 'sonner';
+import { cn } from "@/lib/utils";
 type SortConfig = {
   key: keyof DrawEntry;
   direction: 'asc' | 'desc';
@@ -47,8 +47,8 @@ export function HistoryPage() {
         const bValue = b[sort.key];
         if (aValue === undefined || bValue === undefined) return 0;
         if (sort.key === 'date') {
-          return sort.direction === 'asc' 
-            ? parseISO(a.date).getTime() - parseISO(b.date).getTime() 
+          return sort.direction === 'asc'
+            ? parseISO(a.date).getTime() - parseISO(b.date).getTime()
             : parseISO(b.date).getTime() - parseISO(a.date).getTime();
         }
         if (typeof aValue === 'number' && typeof bValue === 'number') {
@@ -66,6 +66,12 @@ export function HistoryPage() {
         description: `Successfully synchronized ${data.length} records from IRCC.`
       });
     }
+  };
+  const handleClearFilters = () => {
+    setSearch("");
+    setProgramFilter("all");
+    setSort({ key: 'date', direction: 'desc' });
+    toast.info("Filters cleared");
   };
   const handleSort = (key: keyof DrawEntry) => {
     setSort((prev) => {
@@ -90,7 +96,7 @@ export function HistoryPage() {
       'FST': { label: 'FST', class: "bg-amber-100 text-amber-800 border-amber-200" }
     };
     const c = config[type] || config['General'];
-    return <Badge className={c.class}>{c.label}</Badge>;
+    return <Badge variant="outline" className={cn("font-semibold", c.class)}>{c.label}</Badge>;
   };
   return (
     <AppLayout container>
@@ -99,19 +105,19 @@ export function HistoryPage() {
           <div className="flex flex-col gap-2">
             <h1 className="text-3xl font-bold tracking-tight text-foreground">Historical Data</h1>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Clock className="h-3 w-3" />
+              <Clock className="h-3.5 w-3.5" />
               <span>Last synced: {dataUpdatedAt ? format(new Date(dataUpdatedAt), "MMM d, HH:mm:ss") : "Pending..."}</span>
             </div>
           </div>
           <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={handleRefresh} 
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleRefresh}
               disabled={isFetching}
-              className={cn(isFetching && "opacity-50")}
+              className={cn("transition-all duration-200", isFetching && "opacity-50")}
             >
-              <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
+              <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin text-red-600")} />
             </Button>
             <Button variant="outline" onClick={handleExport} className="gap-2">
               <Download className="h-4 w-4" /> Export
@@ -155,18 +161,18 @@ export function HistoryPage() {
           <Table>
             <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableHead className="w-[120px] cursor-pointer" onClick={() => handleSort('drawNumber')}>
-                  <div className="flex items-center gap-1">Draw # <ArrowUpDown className="h-3 w-3" /></div>
+                <TableHead className="w-[120px] cursor-pointer hover:text-foreground transition-colors" onClick={() => handleSort('drawNumber')}>
+                  <div className="flex items-center gap-1 uppercase text-[10px] font-bold tracking-wider">Draw # <ArrowUpDown className="h-3 w-3" /></div>
                 </TableHead>
-                <TableHead className="cursor-pointer" onClick={() => handleSort('date')}>
-                  <div className="flex items-center gap-1">Date <ArrowUpDown className="h-3 w-3" /></div>
+                <TableHead className="cursor-pointer hover:text-foreground transition-colors" onClick={() => handleSort('date')}>
+                  <div className="flex items-center gap-1 uppercase text-[10px] font-bold tracking-wider">Date <ArrowUpDown className="h-3 w-3" /></div>
                 </TableHead>
-                <TableHead>Program Type</TableHead>
-                <TableHead className="text-right cursor-pointer" onClick={() => handleSort('itasIssued')}>
-                  <div className="flex items-center justify-end gap-1">ITAs <ArrowUpDown className="h-3 w-3" /></div>
+                <TableHead className="uppercase text-[10px] font-bold tracking-wider">Program Type</TableHead>
+                <TableHead className="text-right cursor-pointer hover:text-foreground transition-colors" onClick={() => handleSort('itasIssued')}>
+                  <div className="flex items-center justify-end gap-1 uppercase text-[10px] font-bold tracking-wider">ITAs <ArrowUpDown className="h-3 w-3" /></div>
                 </TableHead>
-                <TableHead className="text-right cursor-pointer" onClick={() => handleSort('crsScore')}>
-                  <div className="flex items-center justify-end gap-1">Cutoff <ArrowUpDown className="h-3 w-3" /></div>
+                <TableHead className="text-right cursor-pointer hover:text-foreground transition-colors" onClick={() => handleSort('crsScore')}>
+                  <div className="flex items-center justify-end gap-1 uppercase text-[10px] font-bold tracking-wider">Cutoff <ArrowUpDown className="h-3 w-3" /></div>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -183,18 +189,18 @@ export function HistoryPage() {
                 ))
               ) : filteredDraws.length > 0 ? (
                 filteredDraws.map((draw) => (
-                  <TableRow key={draw.id} className="hover:bg-muted/30 transition-colors">
-                    <TableCell className="font-bold text-red-600">#{draw.drawNumber}</TableCell>
+                  <TableRow key={draw.id} className="hover:bg-muted/30 transition-colors group">
+                    <TableCell className="font-bold text-red-600 group-hover:scale-105 transition-transform origin-left inline-block mt-2">#{draw.drawNumber}</TableCell>
                     <TableCell className="text-muted-foreground">{format(parseISO(draw.date), "MMM d, yyyy")}</TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-0.5">
                         <div className="flex items-center gap-2">{getProgramBadge(draw.programType)}</div>
-                        {draw.description && <span className="text-[10px] text-muted-foreground italic truncate max-w-[200px]">{draw.description}</span>}
+                        {draw.description && <span className="text-[10px] text-muted-foreground italic truncate max-w-[240px]">{draw.description}</span>}
                       </div>
                     </TableCell>
-                    <TableCell className="text-right font-medium">{draw.itasIssued.toLocaleString()}</TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">{draw.itasIssued.toLocaleString()}</TableCell>
                     <TableCell className="text-right">
-                      <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-sm font-bold bg-muted text-foreground">{draw.crsScore}</span>
+                      <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-sm font-bold bg-muted text-foreground tabular-nums group-hover:bg-red-50 group-hover:text-red-700 transition-colors">{draw.crsScore}</span>
                     </TableCell>
                   </TableRow>
                 ))
@@ -202,9 +208,14 @@ export function HistoryPage() {
                 <TableRow>
                   <TableCell colSpan={5} className="h-64 text-center">
                     <div className="flex flex-col items-center justify-center p-8">
-                      <FileX className="h-10 w-10 text-muted-foreground mb-4" />
-                      <h3 className="font-semibold text-lg">No draws found</h3>
-                      <p className="text-sm text-muted-foreground mt-1">Try adjusting your filters.</p>
+                      <div className="p-4 rounded-full bg-muted/50 mb-4">
+                        <FileX className="h-10 w-10 text-muted-foreground" />
+                      </div>
+                      <h3 className="font-semibold text-lg">No matching records</h3>
+                      <p className="text-sm text-muted-foreground mt-1 mb-6">We couldn't find any draws matching your current search or filter criteria.</p>
+                      <Button onClick={handleClearFilters} variant="secondary" className="gap-2">
+                        <Eraser className="h-4 w-4" /> Clear All Filters
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
