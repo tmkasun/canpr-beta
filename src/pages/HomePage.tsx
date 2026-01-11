@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import {
   Users,
   Calendar,
@@ -18,26 +18,20 @@ import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 export function HomePage() {
-  const latestDraw = useMemo(() => MOCK_DRAWS[0], []);
-  const isNewDraw = useMemo(() => 
-    differenceInDays(new Date(), parseISO(latestDraw.date)) <= 14, [latestDraw]);
-  const stats = useMemo(() => {
-    const totalItas = MOCK_DRAWS
-      .filter(d => d.date.startsWith('2024'))
-      .reduce((acc, d) => acc + d.itasIssued, 0);
-    const prevCrs = MOCK_DRAWS[1]?.crsScore ?? 0;
-    const crsDiff = latestDraw.crsScore - prevCrs;
-    return {
-      latestScore: latestDraw.crsScore,
-      totalItas,
-      lastDate: format(parseISO(latestDraw.date), "MMM d, yyyy"),
-      program: latestDraw.programType,
-      crsTrend: {
-        value: Math.abs(crsDiff),
-        isUp: crsDiff < 0
-      }
-    };
-  }, [latestDraw]);
+  const latestDraw = MOCK_DRAWS[0] ?? { date: '', crsScore: 0, programType: '', itasIssued: 0 };
+  const isNewDraw = latestDraw && differenceInDays(new Date(), parseISO(latestDraw.date)) <= 14;
+  const stats = {
+    totalItas: MOCK_DRAWS.filter(d => d.date.startsWith('2024')).reduce((acc, d) => acc + d.itasIssued, 0),
+    prevCrs: MOCK_DRAWS[1]?.crsScore ?? 0,
+    crsDiff: latestDraw?.crsScore - (MOCK_DRAWS[1]?.crsScore ?? 0) ?? 0,
+    latestScore: latestDraw?.crsScore ?? 0,
+    lastDate: latestDraw ? format(parseISO(latestDraw.date), 'MMM d, yyyy') : '',
+    program: latestDraw?.programType ?? '',
+    crsTrend: {
+      value: Math.abs((latestDraw?.crsScore ?? 0) - (MOCK_DRAWS[1]?.crsScore ?? 0)),
+      isUp: (latestDraw?.crsScore ?? 0) - (MOCK_DRAWS[1]?.crsScore ?? 0) < 0
+    }
+  };
   const containerVariants = {
     hidden: { opacity: 0 },
     show: {
