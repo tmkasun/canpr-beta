@@ -5,8 +5,7 @@ import {
   Calculator,
   FileText,
   Settings,
-  Leaf,
-  RefreshCw
+  Leaf
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import {
@@ -20,7 +19,7 @@ import {
   SidebarMenuButton,
   useSidebar
 } from "@/components/ui/sidebar";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useDrawData } from "@/hooks/use-draw-data";
 import { format } from "date-fns";
@@ -38,13 +37,13 @@ export function AppSidebar(): JSX.Element {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center gap-3 px-2 py-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-white shadow-lg">
+        <div className="flex items-center gap-3 px-2 py-4 overflow-hidden">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-600 text-white shadow-lg">
             <Leaf className="size-5" />
           </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-bold leading-none">MapleMetrics</span>
-            <span className="text-[10px] text-muted-foreground">Canada PR Analytics</span>
+          <div className="flex flex-col truncate">
+            <span className="text-sm font-bold leading-none truncate">MapleMetrics</span>
+            <span className="text-[10px] text-muted-foreground truncate">Canada PR Analytics</span>
           </div>
         </div>
       </SidebarHeader>
@@ -58,15 +57,15 @@ export function AppSidebar(): JSX.Element {
                   isActive={location.pathname === item.path}
                   tooltip={item.title}
                   className={cn(
-                    location.pathname === item.path && "bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700"
+                    location.pathname === item.path && "bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 dark:bg-red-950/20 dark:text-red-400"
                   )}
                 >
                   <Link to={item.path} className="flex items-center gap-3">
                     <item.icon className={cn(
-                      "size-4",
-                      location.pathname === item.path ? "text-red-600" : "text-muted-foreground"
+                      "size-4 shrink-0",
+                      location.pathname === item.path ? "text-red-600 dark:text-red-400" : "text-muted-foreground"
                     )} />
-                    <span className="font-medium">{item.title}</span>
+                    <span className="font-medium truncate">{item.title}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -75,35 +74,38 @@ export function AppSidebar(): JSX.Element {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="border-t p-4">
-        <div className="flex flex-col gap-4 px-2">
-          {isExpanded && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-2 cursor-help group">
-                    <div className={cn(
-                      "size-2 rounded-full transition-all duration-500", 
-                      isFetching ? "bg-red-600 animate-ping" : "bg-emerald-500"
-                    )} />
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                        {isFetching ? "Refreshing..." : "IRCC Secure Link"}
-                      </span>
-                      <span className="text-[9px] text-muted-foreground/60 tabular-nums">
-                        {dataUpdatedAt ? format(new Date(dataUpdatedAt), "HH:mm:ss") : "Connecting..."}
-                      </span>
-                    </div>
+        <div className="flex flex-col gap-4 px-2 overflow-hidden">
+          {isExpanded ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-2 cursor-help group">
+                  <div className={cn(
+                    "size-2 shrink-0 rounded-full transition-all duration-500",
+                    isFetching ? "bg-red-600 animate-pulse" : "bg-emerald-500"
+                  )} />
+                  <div className="flex flex-col truncate">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate">
+                      {isFetching ? "Refreshing..." : "IRCC Secure Link"}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground/60 tabular-nums truncate">
+                      {dataUpdatedAt ? format(new Date(dataUpdatedAt), "HH:mm:ss") : "Connecting..."}
+                    </span>
                   </div>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p className="text-xs">Securely connected to the official IRCC data gateway.</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p className="text-xs">Securely connected to the official IRCC data gateway.</p>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+             <div className={cn(
+               "size-2 shrink-0 rounded-full mx-auto",
+               isFetching ? "bg-red-600 animate-pulse" : "bg-emerald-500"
+             )} />
           )}
-          <div className="flex items-center gap-3 group cursor-pointer">
-            <Settings className="size-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-            {isExpanded && <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">Preferences</span>}
+          <div className="flex items-center gap-3 group cursor-pointer overflow-hidden">
+            <Settings className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground transition-colors" />
+            {isExpanded && <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors truncate">Preferences</span>}
           </div>
         </div>
       </SidebarFooter>

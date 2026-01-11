@@ -4,25 +4,30 @@ import { parse, format, isValid } from "date-fns";
 import { api } from "./api-client";
 const CACHE_KEY = "maple_metrics_draw_cache";
 interface IrccDraw {
-  roundNumber: string;
+  roundNumber: string | number;
   roundDate: string;
   roundType: string;
   roundName: string;
-  roundInvitations: string;
-  roundLowestScore: string;
+  roundInvitations: string | number;
+  roundLowestScore: string | number;
 }
 interface IrccResponse {
   rounds: IrccDraw[];
 }
 function determineProgramType(name: string, type: string): ProgramType {
   const combined = (name + " " + type).toLowerCase();
-  // Specific Category checks
-  if (combined.includes("trade occupations")) return "Category-based";
-  if (combined.includes("agriculture")) return "Category-based";
-  if (combined.includes("transport")) return "Category-based";
-  if (combined.includes("stem")) return "Category-based";
-  if (combined.includes("healthcare")) return "Category-based";
-  if (combined.includes("french")) return "Category-based";
+  // Specific Category-based rounds often contain these keywords
+  if (
+    combined.includes("trade occupations") ||
+    combined.includes("agriculture") ||
+    combined.includes("transport") ||
+    combined.includes("stem") ||
+    combined.includes("healthcare") ||
+    combined.includes("french") ||
+    combined.includes("category-based")
+  ) {
+    return "Category-based";
+  }
   // Base Programs
   if (combined.includes("provincial nominee")) return "PNP";
   if (combined.includes("canadian experience")) return "CEC";
@@ -34,7 +39,7 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
   try {
     const json = await api<IrccResponse>('/api/ircc-data');
     if (!json.rounds || !Array.isArray(json.rounds)) {
-      throw new Error("Malformed IRCC response: 'rounds' missing or invalid");
+      throw new Error("Invalid IRCC payload structure");
     }
     const normalized: DrawEntry[] = json.rounds.reduce((acc: DrawEntry[], r, idx) => {
       try {
@@ -49,7 +54,6 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
           }
         }
         if (!dateIso) {
-          console.warn(`[DATA SERVICE] Unparseable date format in draw ${r.roundNumber}: ${r.roundDate}`);
           dateIso = new Date().toISOString().split('T')[0];
         }
         const entry: DrawEntry = {
@@ -63,7 +67,7 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
         };
         acc.push(entry);
       } catch (innerError) {
-        console.error(`[DATA SERVICE] Failed to normalize individual record at index ${idx}:`, JSON.stringify(r));
+        console.warn("[DATA SERVICE] Skipping malformed record:", innerError);
       }
       return acc;
     }, []);
@@ -75,18 +79,18 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
     }
     return normalized;
   } catch (error) {
-    console.error("[DATA SERVICE] Critical IRCC Fetch Error:", error instanceof Error ? error.message : JSON.stringify(error));
+    // Correctly logging the error object message
+    console.error("[DATA SERVICE] Fetch failed:", error instanceof Error ? error.message : String(error));
     try {
       const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed?.data && Array.isArray(parsed.data)) {
-          console.warn("[DATA SERVICE] Serving stale data from local storage fallback");
           return parsed.data;
         }
       }
-    } catch (parseError) {
-      console.error("[DATA SERVICE] Failed to parse local cache:", parseError);
+    } catch {
+      // Fallback silently if cache is corrupt
     }
     return MOCK_DRAWS;
   }
