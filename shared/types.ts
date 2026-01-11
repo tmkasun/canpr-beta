@@ -3,22 +3,36 @@ export interface ApiResponse<T = unknown> {
   data?: T;
   error?: string;
 }
-
-// Minimal real-world chat example types (shared by frontend and worker)
 export interface User {
   id: string;
   name: string;
 }
-
 export interface Chat {
   id: string;
   title: string;
 }
-
 export interface ChatMessage {
   id: string;
   chatId: string;
   userId: string;
   text: string;
-  ts: number; // epoch millis
+  ts: number;
+}
+// MapleMetrics Specific Types
+export type ProgramType = 'General' | 'CEC' | 'PNP' | 'FSW' | 'FST' | 'Category-based';
+export interface DrawEntry {
+  id: string;
+  drawNumber: number;
+  date: string; // ISO string
+  programType: ProgramType;
+  itasIssued: number;
+  crsScore: number;
+  description?: string;
+}
+export interface DrawStatistics {
+  latestCrsScore: number;
+  totalItasYearToDate: number;
+  averageCrsLastFive: number;
+  lastDrawDate: string;
+  itaGrowthPercentage: number;
 }

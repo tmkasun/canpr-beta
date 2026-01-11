@@ -1,138 +1,124 @@
-// Home page of the app.
-// Currently a demo placeholder "please wait" screen.
-// Replace this file with your actual app UI. Do not delete it to use some other file as homepage. Simply replace the entire contents of this file.
-
-import { useEffect, useMemo, useState } from 'react'
-import { Sparkles } from 'lucide-react'
-
-import { ThemeToggle } from '@/components/ThemeToggle'
-import { HAS_TEMPLATE_DEMO, TemplateDemo } from '@/components/TemplateDemo'
-import { Button } from '@/components/ui/button'
-import { Toaster, toast } from '@/components/ui/sonner'
-
-function formatDuration(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000))
-  const m = Math.floor(total / 60)
-  const s = total % 60
-  return `${m}:${s.toString().padStart(2, '0')}`
-}
-
+import React, { useMemo } from 'react';
+import { 
+  Users, 
+  Calendar, 
+  Trophy, 
+  Activity, 
+  ArrowRight,
+  TrendingUp
+} from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { StatCard } from '@/components/dashboard/StatCard';
+import { ScoreTrendChart } from '@/components/dashboard/ScoreTrendChart';
+import { InvitationBarChart } from '@/components/dashboard/InvitationBarChart';
+import { MOCK_DRAWS } from '@shared/mock-canada-data';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 export function HomePage() {
-  const [coins, setCoins] = useState(0)
-  const [isRunning, setIsRunning] = useState(false)
-  const [startedAt, setStartedAt] = useState<number | null>(null)
-  const [elapsedMs, setElapsedMs] = useState(0)
-
-  useEffect(() => {
-    if (!isRunning || startedAt === null) return
-
-    const t = setInterval(() => {
-      setElapsedMs(Date.now() - startedAt)
-    }, 250)
-
-    return () => clearInterval(t)
-  }, [isRunning, startedAt])
-
-  const formatted = useMemo(() => formatDuration(elapsedMs), [elapsedMs])
-
-  const onPleaseWait = () => {
-    setCoins((c) => c + 1)
-
-    if (!isRunning) {
-      // Resume from the current elapsed time
-      setStartedAt(Date.now() - elapsedMs)
-      setIsRunning(true)
-      toast.success('Building your app…', {
-        description: "Hang tight — we're setting everything up.",
-      })
-      return
-    }
-
-    setIsRunning(false)
-    toast.info('Still working…', {
-      description: 'You can come back in a moment.',
-    })
-  }
-
-  const onReset = () => {
-    setCoins(0)
-    setIsRunning(false)
-    setStartedAt(null)
-    setElapsedMs(0)
-    toast('Reset complete')
-  }
-
-  const onAddCoin = () => {
-    setCoins((c) => c + 1)
-    toast('Coin added')
-  }
-
+  const latestDraw = useMemo(() => MOCK_DRAWS[0], []);
+  const stats = useMemo(() => {
+    const totalItas = MOCK_DRAWS
+      .filter(d => d.date.startsWith('2024'))
+      .reduce((acc, d) => acc + d.itasIssued, 0);
+    const prevCrs = MOCK_DRAWS[1]?.crsScore ?? 0;
+    const crsDiff = latestDraw.crsScore - prevCrs;
+    return {
+      latestScore: latestDraw.crsScore,
+      totalItas,
+      lastDate: format(parseISO(latestDraw.date), "MMM d, yyyy"),
+      program: latestDraw.programType,
+      crsTrend: {
+        value: Math.abs(crsDiff),
+        isUp: crsDiff < 0 // In CRS context, "down" is usually good (easier to get PR)
+      }
+    };
+  }, [latestDraw]);
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground p-4 overflow-hidden relative">
-      <ThemeToggle />
-      <div className="absolute inset-0 bg-gradient-rainbow opacity-10 dark:opacity-20 pointer-events-none" />
-
-      <div className="text-center space-y-8 relative z-10 animate-fade-in w-full">
-        <div className="flex justify-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-primary floating">
-            <Sparkles className="w-8 h-8 text-white rotating" />
+    <AppLayout container>
+      <div className="space-y-8 animate-fade-in">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Executive Dashboard</h1>
+            <p className="text-muted-foreground">Comprehensive insights into Canada Express Entry draws</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button className="bg-red-600 hover:bg-red-700 text-white shadow-primary">
+              Run Score Simulator
+            </Button>
           </div>
         </div>
-
-        <div className="space-y-3">
-          <h1 className="text-5xl md:text-7xl font-display font-bold text-balance leading-tight">
-            Creating your <span className="text-gradient">app</span>
-          </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto text-pretty">
-            Your application would be ready soon.
-          </p>
+        {/* Stats Grid */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <StatCard 
+            title="Latest Cutoff Score"
+            value={stats.latestScore}
+            icon={Trophy}
+            description={`Program: ${stats.program}`}
+          />
+          <StatCard 
+            title="Total ITAs (2024)"
+            value={stats.totalItas.toLocaleString()}
+            icon={Users}
+            description="Invitations issued YTD"
+            trend={{ value: 12, isUp: true }}
+          />
+          <StatCard 
+            title="Last Draw Date"
+            value={stats.lastDate}
+            icon={Calendar}
+            description="Official IRCC update"
+          />
+          <StatCard 
+            title="System Health"
+            value="Active"
+            icon={Activity}
+            description="Processing times stable"
+          />
         </div>
-
-        {HAS_TEMPLATE_DEMO ? (
-          <div className="max-w-5xl mx-auto text-left">
-            <TemplateDemo />
+        {/* Charts Row */}
+        <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
+          <ScoreTrendChart data={MOCK_DRAWS} />
+          <InvitationBarChart data={MOCK_DRAWS} />
+        </div>
+        {/* Recent Draws List Summary */}
+        <div className="rounded-xl border bg-card shadow-sm p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold">Recent Activity</h2>
+            <Button variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50">
+              View All History <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
           </div>
-        ) : (
-          <>
-            <div className="flex justify-center gap-4">
-              <Button
-                size="lg"
-                onClick={onPleaseWait}
-                className="btn-gradient px-8 py-4 text-lg font-semibold hover:-translate-y-0.5 transition-all duration-200"
-                aria-live="polite"
-              >
-                Please Wait
-              </Button>
-            </div>
-
-            <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
-              <div>
-                Time elapsed:{' '}
-                <span className="font-medium tabular-nums text-foreground">{formatted}</span>
+          <div className="space-y-4">
+            {MOCK_DRAWS.slice(0, 5).map((draw) => (
+              <div key={draw.id} className="flex items-center justify-between p-4 rounded-lg bg-muted/30 transition-colors hover:bg-muted/50 border border-transparent hover:border-border">
+                <div className="flex items-center gap-4">
+                  <div className="h-10 w-10 rounded-full bg-background flex items-center justify-center border shadow-sm text-xs font-bold text-red-600">
+                    #{draw.drawNumber}
+                  </div>
+                  <div>
+                    <div className="font-semibold">{draw.programType} Draw</div>
+                    <div className="text-xs text-muted-foreground">{format(parseISO(draw.date), "MMMM d, yyyy")}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-8">
+                  <div className="text-right">
+                    <div className="text-xs text-muted-foreground">ITAs</div>
+                    <div className="font-bold">{draw.itasIssued.toLocaleString()}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-muted-foreground">Score</div>
+                    <Badge variant="secondary" className="font-bold bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                      {draw.crsScore}
+                    </Badge>
+                  </div>
+                </div>
               </div>
-              <div>
-                Coins:{' '}
-                <span className="font-medium tabular-nums text-foreground">{coins}</span>
-              </div>
-            </div>
-
-            <div className="flex justify-center gap-2">
-              <Button variant="outline" size="sm" onClick={onReset}>
-                Reset
-              </Button>
-              <Button variant="outline" size="sm" onClick={onAddCoin}>
-                Add Coin
-              </Button>
-            </div>
-          </>
-        )}
+            ))}
+          </div>
+        </div>
       </div>
-
-      <footer className="absolute bottom-8 text-center text-muted-foreground/80">
-        <p>Powered by Cloudflare</p>
-      </footer>
-
-      <Toaster richColors closeButton />
-    </div>
-  )
+    </AppLayout>
+  );
 }

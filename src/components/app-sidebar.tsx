@@ -1,72 +1,73 @@
-/* This is a demo sidebar. **COMPULSORY** Edit this file to customize the sidebar OR remove it from appLayout OR don't use appLayout at all */
 import React from "react";
-import { Home, Layers, Compass, Star, Settings, LifeBuoy } from "lucide-react";
+import { 
+  LayoutDashboard, 
+  History, 
+  Calculator, 
+  FileText, 
+  Settings, 
+  Leaf 
+} from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
   SidebarHeader,
-  SidebarSeparator,
-  SidebarInput,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarMenuAction,
-  SidebarMenuBadge,
 } from "@/components/ui/sidebar";
-
+import { cn } from "@/lib/utils";
+const NAV_ITEMS = [
+  { title: "Dashboard", icon: LayoutDashboard, path: "/" },
+  { title: "Historical Data", icon: History, path: "/history" },
+  { title: "CRS Calculator", icon: Calculator, path: "/calculator" },
+  { title: "Insights", icon: FileText, path: "/insights" },
+];
 export function AppSidebar(): JSX.Element {
+  const location = useLocation();
   return (
-    <Sidebar>
+    <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-1">
-          <div className="h-6 w-6 rounded-md bg-gradient-to-br from-indigo-500 to-purple-500" />
-          <span className="text-sm font-medium">Demo Sidebar</span>
+        <div className="flex items-center gap-3 px-2 py-4">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-white">
+            <Leaf className="size-5" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-bold leading-none">MapleMetrics</span>
+            <span className="text-[10px] text-muted-foreground">Canada PR Analytics</span>
+          </div>
         </div>
-        <SidebarInput placeholder="Search" />
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive>
-                <a href="#"><Home /> <span>Home</span></a>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <a href="#"><Layers /> <span>Projects</span></a>
-              </SidebarMenuButton>
-              <SidebarMenuAction>
-                <Star className="size-4" />
-              </SidebarMenuAction>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <a href="#"><Compass /> <span>Explore</span></a>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
-
-        <SidebarSeparator />
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Quick Links</SidebarGroupLabel>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <a href="#"><Star /> <span>Starred</span></a>
-              </SidebarMenuButton>
-              <SidebarMenuBadge>5</SidebarMenuBadge>
-            </SidebarMenuItem>
+            {NAV_ITEMS.map((item) => (
+              <SidebarMenuItem key={item.path}>
+                <SidebarMenuButton 
+                  asChild 
+                  isActive={location.pathname === item.path}
+                  tooltip={item.title}
+                >
+                  <Link to={item.path} className="flex items-center gap-3">
+                    <item.icon className={cn(
+                      "size-4",
+                      location.pathname === item.path ? "text-red-600" : "text-foreground/70"
+                    )} />
+                    <span className="font-medium">{item.title}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <div className="px-2 text-xs text-muted-foreground">A simple shadcn sidebar</div>
+      <SidebarFooter className="border-t p-4">
+        <div className="flex items-center gap-3 px-2">
+          <Settings className="size-4 text-muted-foreground" />
+          <span className="text-xs font-medium text-muted-foreground">Settings</span>
+        </div>
       </SidebarFooter>
     </Sidebar>
   );
