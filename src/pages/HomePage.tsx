@@ -18,20 +18,19 @@ import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 export function HomePage() {
-  const latestDraw = MOCK_DRAWS[0] ?? { date: '', crsScore: 0, programType: '', itasIssued: 0 };
-  const isNewDraw = latestDraw && differenceInDays(new Date(), parseISO(latestDraw.date)) <= 14;
+  const latestDraw = MOCK_DRAWS[0];
+  const previousDraw = MOCK_DRAWS[1];
+  const isNewDraw = latestDraw ? differenceInDays(new Date(), parseISO(latestDraw.date)) <= 14 : false;
   const stats = {
     totalItas: MOCK_DRAWS.filter(d => d.date.startsWith('2024')).reduce((acc, d) => acc + d.itasIssued, 0),
-    prevCrs: MOCK_DRAWS[1]?.crsScore ?? 0,
-    crsDiff: latestDraw?.crsScore - (MOCK_DRAWS[1]?.crsScore ?? 0) ?? 0,
     latestScore: latestDraw?.crsScore ?? 0,
-    lastDate: latestDraw ? format(parseISO(latestDraw.date), 'MMM d, yyyy') : '',
-    program: latestDraw?.programType ?? '',
-    crsTrend: {
-      value: Math.abs((latestDraw?.crsScore ?? 0) - (MOCK_DRAWS[1]?.crsScore ?? 0)),
-      isUp: (latestDraw?.crsScore ?? 0) - (MOCK_DRAWS[1]?.crsScore ?? 0) < 0
-    }
+    prevScore: previousDraw?.crsScore ?? 0,
+    lastDate: latestDraw ? format(parseISO(latestDraw.date), 'MMM d, yyyy') : 'No Data',
+    program: latestDraw?.programType ?? 'N/A',
   };
+  const crsDiff = stats.latestScore - stats.prevScore;
+  const crsTrendValue = Math.abs(crsDiff);
+  const isUp = crsDiff < 0; // In CRS, lower is usually "better" or trending towards accessibility
   const containerVariants = {
     hidden: { opacity: 0 },
     show: {
@@ -54,7 +53,7 @@ export function HomePage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <h1 className="text-3xl font-bold tracking-tight">Executive Dashboard</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">Executive Dashboard</h1>
               {isNewDraw && (
                 <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white border-none animate-pulse">
                   <Bell className="w-3 h-3 mr-1" /> New Draw
@@ -72,8 +71,20 @@ export function HomePage() {
           </motion.div>
         </div>
         <motion.div variants={itemVariants} className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Latest Cutoff Score" value={stats.latestScore} icon={Trophy} description={`Program: ${stats.program}`} />
-          <StatCard title="Total ITAs (2024)" value={stats.totalItas.toLocaleString()} icon={Users} description="Invitations issued YTD" trend={{ value: 12, isUp: true }} />
+          <StatCard 
+            title="Latest Cutoff Score" 
+            value={stats.latestScore} 
+            icon={Trophy} 
+            description={`Program: ${stats.program}`}
+            trend={{ value: crsTrendValue, isUp }}
+          />
+          <StatCard 
+            title="Total ITAs (2024)" 
+            value={stats.totalItas.toLocaleString()} 
+            icon={Users} 
+            description="Invitations issued YTD" 
+            trend={{ value: 12, isUp: true }} 
+          />
           <StatCard title="Last Draw Date" value={stats.lastDate} icon={Calendar} description="Official IRCC update" />
           <StatCard title="System Health" value="Active" icon={Activity} description="Processing times stable" />
         </motion.div>
@@ -83,7 +94,7 @@ export function HomePage() {
         </motion.div>
         <motion.div variants={itemVariants} className="rounded-xl border bg-card shadow-soft p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold">Recent Activity</h2>
+            <h2 className="text-xl font-semibold text-foreground">Recent Activity</h2>
             <Link to="/history">
               <Button variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50">
                 View All History <ArrowRight className="ml-2 h-4 w-4" />
@@ -98,14 +109,14 @@ export function HomePage() {
                     #{draw.drawNumber}
                   </div>
                   <div>
-                    <div className="font-semibold text-sm">{draw.programType} Draw</div>
+                    <div className="font-semibold text-sm text-foreground">{draw.programType} Draw</div>
                     <div className="text-xs text-muted-foreground">{format(parseISO(draw.date), "MMMM d, yyyy")}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="text-right hidden sm:block">
                     <div className="text-[10px] uppercase text-muted-foreground">ITAs</div>
-                    <div className="font-bold text-sm">{draw.itasIssued.toLocaleString()}</div>
+                    <div className="font-bold text-sm text-foreground">{draw.itasIssued.toLocaleString()}</div>
                   </div>
                   <div className="text-right">
                     <div className="text-[10px] uppercase text-muted-foreground">Score</div>

@@ -6,13 +6,14 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Calculator, Info, CheckCircle2, Save, Trash2, History } from 'lucide-react';
+import { Calculator, Info, CheckCircle2, Save, Trash2, History, ArrowRight, Sparkles } from 'lucide-react';
 import { MOCK_DRAWS } from '@shared/mock-canada-data';
 import { api } from '@/lib/api-client';
 import { CRSProfile } from '@shared/types';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Link } from 'react-router-dom';
 export function CalculatorPage() {
   const [age, setAge] = useState<string>("25");
   const [edu, setEdu] = useState<string>("master");
@@ -31,14 +32,16 @@ export function CalculatorPage() {
     if (edu === "phd") total += 150;
     else if (edu === "master") total += 135;
     else if (edu === "bachelor") total += 120;
+    else if (edu === "college") total += 98;
     if (lang === "high") total += 136;
     else if (lang === "mid") total += 100;
     else total += 60;
     if (exp === "3") total += 50;
     else if (exp === "2") total += 38;
-    else total += 25;
+    else if (exp === "1") total += 25;
     return total;
   }, [age, edu, lang, exp]);
+  const qualifies = score >= latestCutoff;
   useEffect(() => {
     fetchProfiles();
   }, []);
@@ -95,14 +98,14 @@ export function CalculatorPage() {
     <AppLayout container>
       <div className="space-y-8 animate-fade-in">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold tracking-tight">CRS Score Calculator</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">CRS Score Calculator</h1>
           <p className="text-muted-foreground">Estimate your Comprehensive Ranking System score and save it for tracking.</p>
         </div>
         <div className="grid gap-8 grid-cols-1 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
             <Card className="shadow-soft border-none">
               <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
+                <CardTitle className="text-lg flex items-center gap-2 text-foreground">
                   <Info className="h-5 w-5 text-red-600" />
                   Personal Factors
                 </CardTitle>
@@ -116,7 +119,7 @@ export function CalculatorPage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="age">Age</Label>
-                    <Input id="age" type="number" value={age} onChange={(e) => setAge(e.target.value)} />
+                    <Input id="age" type="number" value={age} onChange={(e) => setAge(e.target.value)} min="18" max="100" />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -168,7 +171,7 @@ export function CalculatorPage() {
             </Card>
             <Card className="shadow-soft border-none overflow-hidden">
               <CardHeader className="bg-muted/30">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2 text-foreground">
                   <History className="h-4 w-4 text-red-600" />
                   Saved Estimations
                 </CardTitle>
@@ -189,7 +192,7 @@ export function CalculatorPage() {
                   ) : (
                     <AnimatePresence>
                       {savedProfiles.map((p) => (
-                        <motion.div 
+                        <motion.div
                           key={p.id}
                           initial={{ opacity: 0, x: -10 }}
                           animate={{ opacity: 1, x: 0 }}
@@ -197,7 +200,7 @@ export function CalculatorPage() {
                           className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors group"
                         >
                           <div className="cursor-pointer flex-1" onClick={() => loadProfile(p)}>
-                            <div className="font-semibold text-sm">{p.label}</div>
+                            <div className="font-semibold text-sm text-foreground">{p.label}</div>
                             <div className="text-[10px] text-muted-foreground">
                               {format(parseISO(p.date), "MMM d, yyyy · HH:mm")}
                             </div>
@@ -225,12 +228,15 @@ export function CalculatorPage() {
           </div>
           <div className="space-y-6">
             <motion.div
-              animate={score >= latestCutoff ? { scale: [1, 1.02, 1] } : {}}
+              animate={qualifies ? { scale: [1, 1.02, 1] } : {}}
               transition={{ repeat: Infinity, duration: 2 }}
             >
-              <Card className="bg-red-600 text-white shadow-primary border-none overflow-hidden relative">
+              <Card className={cn(
+                "text-white shadow-primary border-none overflow-hidden relative min-h-[300px]",
+                qualifies ? "bg-emerald-600 shadow-emerald-500/20" : "bg-red-600"
+              )}>
                 <div className="absolute top-0 right-0 p-4 opacity-10">
-                  <Calculator className="h-24 w-24" />
+                  {qualifies ? <Sparkles className="h-24 w-24" /> : <Calculator className="h-24 w-24" />}
                 </div>
                 <CardHeader>
                   <CardTitle className="text-white/90 text-sm font-medium uppercase tracking-wider">Estimated Score</CardTitle>
@@ -244,19 +250,29 @@ export function CalculatorPage() {
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span>Target Gap:</span>
-                      <span className="font-bold">{latestCutoff - score > 0 ? `-${latestCutoff - score}` : `+${Math.abs(latestCutoff - score)}`}</span>
+                      <span className="font-bold">
+                        {latestCutoff - score > 0 ? `-${latestCutoff - score}` : `+${Math.abs(latestCutoff - score)}`}
+                      </span>
                     </div>
                   </div>
-                  {score >= latestCutoff ? (
-                    <div className="flex items-center gap-2 bg-white/20 p-3 rounded-lg text-xs font-medium">
-                      <CheckCircle2 className="h-4 w-4" />
-                      Qualifies for the latest draw!
-                    </div>
-                  ) : (
-                    <Button variant="secondary" className="w-full text-red-600 font-bold hover:bg-white/90">
-                      Improve Score
-                    </Button>
-                  )}
+                  <div className="space-y-3">
+                    {qualifies ? (
+                      <div className="flex items-center gap-2 bg-white/20 p-3 rounded-lg text-xs font-medium backdrop-blur-sm">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Qualifies for the latest draw!
+                      </div>
+                    ) : (
+                      <div className="text-xs text-white/80 p-3 bg-black/10 rounded-lg">
+                        Score below latest cutoff. Check history for program-specific trends.
+                      </div>
+                    )}
+                    <Link to="/history">
+                      <Button variant="secondary" className="w-full text-foreground font-bold hover:bg-white/90 group">
+                        Compare with History
+                        <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      </Button>
+                    </Link>
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>
