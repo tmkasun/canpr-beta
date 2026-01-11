@@ -3,200 +3,160 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Calculator, Save, Trash2, History, ArrowRight, Sparkles, Target, Trophy, Clock, AlertTriangle } from 'lucide-react';
-import { useDrawData } from '@/hooks/use-draw-data';
-import { useProfiles } from '@/hooks/use-profiles';
-import { toast } from 'sonner';
-import { format, parseISO } from 'date-fns';
-import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { cn } from '@/lib/utils';
+import { Calculator, Info, CheckCircle2 } from 'lucide-react';
+import { MOCK_DRAWS } from '@shared/mock-canada-data';
 export function CalculatorPage() {
-  const { latestDraw, draws } = useDrawData();
-  const { profiles, saveProfile, deleteProfile } = useProfiles();
-  const [manualScore, setManualScore] = useState<string>("500");
-  const [label, setLabel] = useState<string>("My Target Profile");
-  const latestCutoff = latestDraw?.crsScore ?? 500;
-  const cecCutoff = draws.find(d => d.programType === 'CEC')?.crsScore ?? 500;
-  const savedProfiles = useMemo(() => {
-    return [...profiles].sort((a, b) =>
-      parseISO(b.date).getTime() - parseISO(a.date).getTime()
-    );
-  }, [profiles]);
-  const score = parseInt(manualScore) || 0;
-  const qualifies = score >= latestCutoff;
-  const gap = latestCutoff - score;
-  const handleSave = () => {
-    if (score <= 0 || score > 1200) {
-      toast.error("Invalid Score", { description: "CRS scores must be between 1 and 1200." });
-      return;
-    }
-    try {
-      saveProfile({
-        label: label.trim() || "Manual Entry",
-        score
-      });
-      toast.success("Benchmark Saved", { description: "Your manual score has been persisted locally." });
-    } catch (err) {
-      toast.error("Storage Error", { description: "Failed to persist your profile estimate." });
-    }
-  };
+  const [age, setAge] = useState<string>("25");
+  const [edu, setEdu] = useState<string>("master");
+  const [lang, setLang] = useState<string>("high");
+  const [exp, setExp] = useState<string>("3");
+  const latestCutoff = MOCK_DRAWS[0].crsScore;
+  const score = useMemo(() => {
+    let total = 0;
+    // Age simplified IRCC logic
+    const ageVal = parseInt(age);
+    if (ageVal >= 20 && ageVal <= 29) total += 110;
+    else if (ageVal >= 30) total += Math.max(0, 110 - (ageVal - 29) * 5);
+    // Education
+    if (edu === "phd") total += 150;
+    else if (edu === "master") total += 135;
+    else if (edu === "bachelor") total += 120;
+    // Languages
+    if (lang === "high") total += 136;
+    else if (lang === "mid") total += 100;
+    else total += 60;
+    // Experience
+    if (exp === "3") total += 50;
+    else if (exp === "2") total += 38;
+    else total += 25;
+    return total;
+  }, [age, edu, lang, exp]);
   return (
     <AppLayout container>
       <div className="space-y-8 animate-fade-in">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">CRS Estimator</h1>
-          <p className="text-muted-foreground">Benchmark your manual score against the latest IRCC trends and categories.</p>
+          <h1 className="text-3xl font-bold tracking-tight">CRS Score Calculator</h1>
+          <p className="text-muted-foreground">Estimate your Comprehensive Ranking System score for Express Entry.</p>
         </div>
         <div className="grid gap-8 grid-cols-1 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
-            <Card className="shadow-soft border-none overflow-hidden bg-card">
-              <CardHeader className="bg-muted/10 pb-6 border-b border-dashed">
+            <Card className="shadow-soft border-none">
+              <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Calculator className="h-5 w-5 text-primary" />
-                  Direct Benchmarking
+                  <Info className="h-5 w-5 text-red-600" />
+                  Personal Factors
                 </CardTitle>
-                <CardDescription>
-                  Enter your estimated score to see where you stand in the current pool.
-                </CardDescription>
+                <CardDescription>Basic profile information</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-8 pt-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-3">
-                    <Label htmlFor="label" className="text-[10px] font-black uppercase tracking-widest opacity-60">Profile Label</Label>
-                    <Input id="label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g., Master's Goal" className="h-12 rounded-xl border-muted bg-muted/20" />
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="age">Age</Label>
+                    <Input id="age" type="number" value={age} onChange={(e) => setAge(e.target.value)} />
                   </div>
-                  <div className="space-y-3">
-                    <Label htmlFor="manualScore" className="text-[10px] font-black uppercase tracking-widest opacity-60">Your Estimated Score</Label>
-                    <Input
-                      id="manualScore"
-                      type="number"
-                      value={manualScore}
-                      onChange={(e) => setManualScore(e.target.value)}
-                      className="font-black text-xl text-primary h-12 rounded-xl border-muted bg-muted/20"
-                    />
+                  <div className="space-y-2">
+                    <Label htmlFor="edu">Highest Education</Label>
+                    <Select value={edu} onValueChange={setEdu}>
+                      <SelectTrigger id="edu">
+                        <SelectValue placeholder="Select Education" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="phd">Doctorate (PhD)</SelectItem>
+                        <SelectItem value="master">Master's Degree</SelectItem>
+                        <SelectItem value="bachelor">Bachelor's Degree</SelectItem>
+                        <SelectItem value="college">College Diploma</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-                <Button
-                  onClick={handleSave}
-                  className="w-full bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest text-xs h-12 shadow-xl shadow-primary/20 rounded-xl"
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  Save Benchmark Profile
-                </Button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="lang">Language Proficiency (CLB)</Label>
+                    <Select value={lang} onValueChange={setLang}>
+                      <SelectTrigger id="lang">
+                        <SelectValue placeholder="Select Level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="high">CLB 9 or Higher</SelectItem>
+                        <SelectItem value="mid">CLB 7 - 8</SelectItem>
+                        <SelectItem value="low">Below CLB 7</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="exp">Canadian Work Experience</Label>
+                    <Select value={exp} onValueChange={setExp}>
+                      <SelectTrigger id="exp">
+                        <SelectValue placeholder="Select Years" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="3">3+ Years</SelectItem>
+                        <SelectItem value="2">2 Years</SelectItem>
+                        <SelectItem value="1">1 Year</SelectItem>
+                        <SelectItem value="0">None</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </CardContent>
             </Card>
-            <Card className="shadow-soft border-none overflow-hidden h-[400px] flex flex-col bg-card">
-              <CardHeader className="bg-muted/20 border-b border-dashed">
-                <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                  <History className="size-4 text-primary" /> Tracking History
-                </CardTitle>
-              </CardHeader>
-              <ScrollArea className="flex-1">
-                {savedProfiles.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-[300px] text-center p-8 space-y-4">
-                    <div className="size-16 rounded-3xl bg-primary/5 flex items-center justify-center">
-                      <Target className="size-8 text-primary opacity-40" />
-                    </div>
-                    <div className="space-y-1">
-                      <h4 className="font-black text-sm uppercase tracking-wider">No Benchmarks Found</h4>
-                      <p className="text-xs text-muted-foreground max-w-[200px] mx-auto">
-                        Save your estimated scores to compare them against live data.
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-dashed">
-                    {savedProfiles.map((p) => (
-                      <div key={p.id} className="p-5 flex items-center justify-between hover:bg-muted/30 transition-colors group">
-                        <div className="space-y-1">
-                          <div className="font-black text-sm uppercase tracking-tighter">{p.label}</div>
-                          <div className="text-[10px] text-muted-foreground flex items-center gap-2 font-medium">
-                            <Clock className="size-3" /> {format(parseISO(p.date), "MMM d, yyyy")}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-6">
-                           <div className="text-right">
-                              <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Points</div>
-                              <div className="text-xl font-black text-primary tabular-nums">{p.score}</div>
-                           </div>
-                           <Button 
-                             variant="ghost" 
-                             size="icon" 
-                             className="size-8 text-muted-foreground hover:text-destructive rounded-lg" 
-                             onClick={() => {
-                               deleteProfile(p.id);
-                               toast.info("Profile Removed");
-                             }}
-                           >
-                             <Trash2 className="size-4" />
-                           </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </ScrollArea>
-            </Card>
+            <div className="p-6 rounded-xl bg-muted/30 border border-dashed text-sm text-muted-foreground">
+              Note: This calculator is for estimation purposes only. Your actual CRS score will be determined by IRCC during the application process.
+            </div>
           </div>
           <div className="space-y-6">
-            <motion.div animate={qualifies ? { scale: [1, 1.02, 1] } : {}} transition={{ repeat: Infinity, duration: 4 }}>
-              <Card className={cn(
-                "min-h-[480px] text-white shadow-2xl border-none relative overflow-hidden flex flex-col rounded-3xl transition-colors duration-700",
-                qualifies ? "bg-emerald-600 shadow-emerald-600/30" : "bg-primary shadow-primary/30"
-              )}>
-                <div className="absolute -right-10 -top-10 opacity-10">
-                   <Sparkles className="size-48" />
+            <Card className="bg-red-600 text-white shadow-primary border-none overflow-hidden relative">
+              <div className="absolute top-0 right-0 p-4 opacity-10">
+                <Calculator className="h-24 w-24" />
+              </div>
+              <CardHeader>
+                <CardTitle className="text-white/90 text-sm font-medium uppercase tracking-wider">Estimated Score</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="text-6xl font-black">{score}</div>
+                <div className="space-y-2 pt-4 border-t border-white/20">
+                  <div className="flex justify-between items-center text-sm">
+                    <span>Latest Cutoff:</span>
+                    <span className="font-bold">{latestCutoff}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span>Target Gap:</span>
+                    <span className="font-bold">{latestCutoff - score > 0 ? `-${latestCutoff - score}` : `+${Math.abs(latestCutoff - score)}`}</span>
+                  </div>
                 </div>
-                <CardHeader>
-                  <CardTitle className="text-white/70 text-[10px] font-black uppercase tracking-[0.3em]">Market Verdict</CardTitle>
-                </CardHeader>
-                <CardContent className="flex-1 flex flex-col justify-between">
-                  <div className="space-y-2">
-                    <motion.div key={score} initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="text-[120px] font-black leading-none tracking-tighter tabular-nums drop-shadow-lg">
-                      {score}
-                    </motion.div>
-                    <div className="text-xs font-black uppercase tracking-widest text-white/60">Benchmarked Points</div>
+                {score >= latestCutoff ? (
+                  <div className="flex items-center gap-2 bg-white/20 p-3 rounded-lg text-xs">
+                    <CheckCircle2 className="h-4 w-4" />
+                    You are currently above the latest cutoff score!
                   </div>
-                  <div className="space-y-6">
-                    <div className="bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/10 space-y-4">
-                      <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest">
-                        <span>Latest Cutoff</span>
-                        <span className="font-black text-lg">{latestCutoff}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest">
-                        <span>CEC Specific</span>
-                        <span className="font-black text-lg">{cecCutoff}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest border-t border-white/10 pt-4">
-                        <span>Your Gap</span>
-                        <span className={cn("font-black text-lg", qualifies ? "text-emerald-200" : "text-rose-200")}>
-                          {gap > 0 ? `-${gap}` : `+${Math.abs(gap)}`}
-                        </span>
-                      </div>
-                    </div>
-                    {qualifies ? (
-                      <div className="flex items-center gap-4 bg-white p-5 rounded-2xl text-emerald-800 shadow-lg">
-                        <Trophy className="size-8 shrink-0 text-emerald-600" />
-                        <div className="text-xs font-black uppercase leading-tight">Qualified for Selection!</div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-4 bg-black/10 border border-white/5 p-5 rounded-2xl">
-                        <AlertTriangle className="size-8 shrink-0 text-white/40" />
-                        <div className="text-xs font-bold opacity-80 leading-snug">Below cutoff. Use Category analysis for better targets.</div>
-                      </div>
-                    )}
-                    <Link to="/history" className="block w-full">
-                      <Button variant="secondary" className="w-full h-12 rounded-xl font-black uppercase tracking-widest text-xs group">
-                        Historical Context <ArrowRight className="ml-2 size-4 transition-transform group-hover:translate-x-1" />
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
+                ) : (
+                  <Button variant="secondary" className="w-full text-red-600 font-bold hover:bg-white/90">
+                    How to improve?
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+            <Card className="shadow-soft border-none">
+              <CardHeader>
+                <CardTitle className="text-sm">Points Breakdown</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center text-sm py-2 border-b">
+                  <span className="text-muted-foreground">Core Human Capital</span>
+                  <span className="font-medium">{score} / 600</span>
+                </div>
+                <div className="flex justify-between items-center text-sm py-2 border-b">
+                  <span className="text-muted-foreground">Skill Transferability</span>
+                  <span className="font-medium">0 / 100</span>
+                </div>
+                <div className="flex justify-between items-center text-sm py-2">
+                  <span className="text-muted-foreground">Additional Points</span>
+                  <span className="font-medium">0 / 600</span>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>

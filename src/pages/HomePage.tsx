@@ -15,6 +15,7 @@ import { InvitationBarChart } from '@/components/dashboard/InvitationBarChart';
 import { MOCK_DRAWS } from '@shared/mock-canada-data';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Link } from 'react-router-dom';
 export function HomePage() {
   const latestDraw = useMemo(() => MOCK_DRAWS[0], []);
   const stats = useMemo(() => {
@@ -44,9 +45,11 @@ export function HomePage() {
             <p className="text-muted-foreground">Comprehensive insights into Canada Express Entry draws</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button className="bg-red-600 hover:bg-red-700 text-white shadow-primary">
-              Run Score Simulator
-            </Button>
+            <Link to="/calculator">
+              <Button className="bg-red-600 hover:bg-red-700 text-white shadow-primary">
+                Run Score Simulator
+              </Button>
+            </Link>
           </div>
         </div>
         {/* Stats Grid */}
@@ -86,9 +89,11 @@ export function HomePage() {
         <div className="rounded-xl border bg-card shadow-sm p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold">Recent Activity</h2>
-            <Button variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50">
-              View All History <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            <Link to="/history">
+              <Button variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                View All History <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
           </div>
           <div className="space-y-4">
             {MOCK_DRAWS.slice(0, 5).map((draw) => (

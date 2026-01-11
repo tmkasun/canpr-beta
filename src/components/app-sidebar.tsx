@@ -45,15 +45,16 @@ export function AppSidebar(): JSX.Element {
           <SidebarMenu>
             {NAV_ITEMS.map((item) => (
               <SidebarMenuItem key={item.path}>
-                <SidebarMenuButton 
-                  asChild 
+                <SidebarMenuButton
+                  asChild
                   isActive={location.pathname === item.path}
                   tooltip={item.title}
+                  className={cn(location.pathname === item.path && "bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700")}
                 >
                   <Link to={item.path} className="flex items-center gap-3">
                     <item.icon className={cn(
                       "size-4",
-                      location.pathname === item.path ? "text-red-600" : "text-foreground/70"
+                      location.pathname === item.path ? "text-red-600" : "text-muted-foreground"
                     )} />
                     <span className="font-medium">{item.title}</span>
                   </Link>
