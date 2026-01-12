@@ -3,10 +3,6 @@ import { MOCK_DRAWS } from "@shared/mock-canada-data";
 import { parse, format, isValid, parseISO } from "date-fns";
 import { api } from "./api-client";
 const CACHE_KEY = "maple_metrics_draw_cache";
-/**
- * Updated interface to match the actual IRCC Express Entry JSON schema
- * based on client feedback and sample structure.
- */
 interface IrccDraw {
   drawNumber: string | number;
   drawDate: string;
@@ -18,34 +14,27 @@ interface IrccDraw {
 interface IrccResponse {
   rounds: IrccDraw[];
 }
-/**
- * Strips HTML tags from a string to ensure safe UI rendering.
- */
 function stripHtml(html: string): string {
   if (!html) return "";
   return html.replace(/<[^>]*>?/gm, "").trim();
 }
-/**
- * Maps the verbose 'drawName' from IRCC to standardized ProgramType codes.
- */
 function determineProgramType(name: string): ProgramType {
   const n = name.toLowerCase();
-  if (n.includes("provincial nominee")) return "PNP";
-  if (n.includes("canadian experience")) return "CEC";
-  if (n.includes("federal skilled worker")) return "FSW";
-  if (n.includes("federal skilled trades")) return "FST";
-  if (
-    n.includes("stem") ||
-    n.includes("healthcare") ||
-    n.includes("french") ||
-    n.includes("transport") ||
-    n.includes("trade") ||
-    n.includes("agriculture") ||
-    n.includes("category-based")
-  ) {
+  if (n.includes("provincial nominee") || n.includes("pnp")) return "PNP";
+  if (n.includes("canadian experience") || n.includes("cec")) return "CEC";
+  if (n.includes("federal skilled worker") || n.includes("fsw")) return "FSW";
+  if (n.includes("federal skilled trades") || n.includes("fst")) return "FST";
+  const categoryKeywords = ["stem", "healthcare", "french", "transport", "trade", "agriculture", "category-based"];
+  if (categoryKeywords.some(kw => n.includes(kw))) {
     return "Category-based";
   }
   return "General";
+}
+function safeParseInt(val: string | number | undefined, fallback = 0): number {
+  if (val === undefined || val === null) return fallback;
+  const str = val.toString().replace(/[^0-9]/g, "").trim();
+  const parsed = parseInt(str, 10);
+  return isNaN(parsed) ? fallback : parsed;
 }
 export async function fetchLatestDraws(): Promise<DrawEntry[]> {
   try {
@@ -56,33 +45,32 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
     const normalized: DrawEntry[] = json.rounds.reduce((acc: DrawEntry[], r, idx) => {
       try {
         if (!r.drawNumber || !r.drawDate) return acc;
-        // Clean values
         const cleanName = stripHtml(r.drawName || "");
         const rawDate = r.drawDate.trim();
-        // Attempt to parse date (Expected: yyyy-MM-dd)
         let dateIso = "";
-        const parsedDate = parseISO(rawDate);
-        if (isValid(parsedDate)) {
-          dateIso = format(parsedDate, "yyyy-MM-dd");
+        const parsedIso = parseISO(rawDate);
+        if (isValid(parsedIso)) {
+          dateIso = format(parsedIso, "yyyy-MM-dd");
         } else {
-          // Fallback parsing for common IRCC formats if ISO fails
-          const formats = ["MMMM d, yyyy", "MMM d, yyyy", "yyyy-MM-dd"];
+          const formats = ["MMMM d, yyyy", "MMM d, yyyy", "yyyy-MM-dd", "dd/MM/yyyy"];
           for (const fmt of formats) {
-            const p = parse(rawDate, fmt, new Date());
-            if (isValid(p)) {
-              dateIso = format(p, "yyyy-MM-dd");
-              break;
-            }
+            try {
+              const p = parse(rawDate, fmt, new Date());
+              if (isValid(p)) {
+                dateIso = format(p, "yyyy-MM-dd");
+                break;
+              }
+            } catch { continue; }
           }
         }
         if (!dateIso) return acc;
         const entry: DrawEntry = {
-          id: `ircc-${r.drawNumber.toString().replace(/,/g, "").trim() || idx}`,
-          drawNumber: parseInt(r.drawNumber.toString().replace(/,/g, "")) || 0,
+          id: `ircc-${safeParseInt(r.drawNumber) || idx}`,
+          drawNumber: safeParseInt(r.drawNumber),
           date: dateIso,
           programType: determineProgramType(cleanName),
-          itasIssued: parseInt(r.drawSize?.toString().replace(/,/g, "") || "0") || 0,
-          crsScore: parseInt(r.drawCRS?.toString().replace(/,/g, "") || "0") || 0,
+          itasIssued: safeParseInt(r.drawSize),
+          crsScore: safeParseInt(r.drawCRS),
           description: cleanName
         };
         acc.push(entry);
@@ -91,8 +79,7 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
       }
       return acc;
     }, []);
-    // Ensure strictly descending chronological order
-    const sorted = normalized.sort((a, b) => 
+    const sorted = normalized.sort((a, b) =>
       parseISO(b.date).getTime() - parseISO(a.date).getTime()
     );
     if (sorted.length > 0) {
@@ -103,18 +90,14 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
     }
     return sorted;
   } catch (error) {
-    console.error("[DATA SERVICE] Fetch failed:", error instanceof Error ? error.message : String(error));
+    console.error("[DATA SERVICE] Fetch failed, attempting cache fallback.");
     try {
       const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (parsed?.data && Array.isArray(parsed.data)) {
-          return parsed.data;
-        }
+        if (parsed?.data && Array.isArray(parsed.data)) return parsed.data;
       }
-    } catch {
-      // Fallback silently
-    }
+    } catch { /* Ignore */ }
     return MOCK_DRAWS.sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
   }
 }
