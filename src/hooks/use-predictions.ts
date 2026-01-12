@@ -55,5 +55,5 @@ export function usePredictions(filteredDraws: DrawEntry[]) {
       trendSignal,
       volatility
     };
-  }, [filteredDraws, allDraws]);
+  }, [filteredDraws]);
 }

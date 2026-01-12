@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Clock, User, ArrowRight, BookOpen, Share2, Mail } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { cn } from "@/lib/utils";
 const INSIGHTS = [
   {
     id: 1,
@@ -170,11 +171,11 @@ export function InsightsPage() {
               Get weekly score predictions, market analysis, and category-based alerts delivered to your inbox. Join 12,000+ candidates.
             </p>
             <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-3">
-              <Input 
+              <Input
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email address" 
-                className="bg-white/10 border-white/20 text-white placeholder:text-red-100/50 h-12 rounded-xl focus-visible:ring-white" 
+                placeholder="Enter your email address"
+                className="bg-white/10 border-white/20 text-white placeholder:text-red-100/50 h-12 rounded-xl focus-visible:ring-white"
               />
               <Button type="submit" size="lg" variant="secondary" className="font-black rounded-xl h-12 px-8 shrink-0">
                 <Mail className="mr-2 size-4" /> Subscribe

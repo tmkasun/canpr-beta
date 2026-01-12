@@ -13,6 +13,7 @@ import { format, parseISO, isValid } from "date-fns";
 import { DrawEntry } from "@shared/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { useIsMobile } from "@/hooks/use-mobile";
 interface ScoreTrendChartProps {
   data: DrawEntry[];

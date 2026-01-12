@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Calculator, Info, CheckCircle2, Save, Trash2, History, ArrowRight, Sparkles, Loader2, PenLine, Settings2, AlertTriangle, Target, Trophy } from 'lucide-react';
+import { Calculator, Info, CheckCircle2, Save, Trash2, History, ArrowRight, Sparkles, Loader2, PenLine, Settings2, AlertTriangle, Target, Trophy, Clock } from 'lucide-react';
 import { useDrawData } from '@/hooks/use-draw-data';
 import { api } from '@/lib/api-client';
 import { CRSProfile } from '@shared/types';
