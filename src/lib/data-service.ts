@@ -1,8 +1,8 @@
 import { DrawEntry, ProgramType } from "@shared/types";
 import { MOCK_DRAWS } from "@shared/mock-canada-data";
 import { parse, format, isValid, parseISO } from "date-fns";
-import { api } from "./api-client";
 const CACHE_KEY = "maple_metrics_draw_cache";
+const IRCC_JSON_URL = "https://www.canada.ca/content/dam/ircc/documents/json/ee_rounds_123_en.json";
 interface IrccDraw {
   drawNumber: string | number;
   drawDate: string;
@@ -38,17 +38,27 @@ function safeParseInt(val: string | number | undefined, fallback = 0): number {
 }
 export async function fetchLatestDraws(): Promise<DrawEntry[]> {
   try {
-    const json = await api<IrccResponse>('/api/ircc-data');
+    // Direct fetch to IRCC. Note: This might be blocked by CORS in the browser, 
+    // in which case the catch block handles fallback to local storage or mock data.
+    const response = await fetch(IRCC_JSON_URL, {
+      cache: 'no-cache',
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'MapleMetrics/1.0 (Web; Direct Ingestion)'
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`IRCC Direct Fetch Error: ${response.status} ${response.statusText}`);
+    }
+    const json = (await response.json()) as IrccResponse;
     if (!json || !json.rounds || !Array.isArray(json.rounds)) {
       throw new Error("Invalid IRCC payload structure: Missing 'rounds' array");
     }
     const normalized: DrawEntry[] = json.rounds.reduce((acc: DrawEntry[], r, idx) => {
       try {
-        // Safe check for required fields: at least date or name should exist
         if (!r.drawDate && !r.drawName) return acc;
         const cleanName = stripHtml(r.drawName || "Express Entry Round");
-        const drawNum = safeParseInt(r.drawNumber, idx + 1000); // Fallback for missing draw number
-        // Robust date cleaning: remove non-breaking spaces, zero-width chars, and timezone offsets
+        const drawNum = safeParseInt(r.drawNumber, idx + 1000);
         const rawDate = r.drawDate
           .trim()
           .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, ' ')
@@ -59,7 +69,6 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
         if (isValid(parsedIso)) {
           dateIso = format(parsedIso, "yyyy-MM-dd");
         } else {
-          // Fallback parsing for common IRCC text formats
           const formats = ["MMMM d, yyyy", "MMM d, yyyy", "yyyy-MM-dd", "dd/MM/yyyy", "d MMMM yyyy"];
           for (const fmt of formats) {
             try {
@@ -73,7 +82,6 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
         }
         if (!dateIso) return acc;
         const crsValue = safeParseInt(r.drawCRS);
-        // Minimum sanity check for CRS scores
         if (crsValue < 0 || crsValue > 1200) return acc;
         const entry: DrawEntry = {
           id: `ircc-${drawNum}-idx-${idx}`,
@@ -90,7 +98,7 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
       }
       return acc;
     }, []);
-    const sorted = [...normalized].sort((a, b) => 
+    const sorted = [...normalized].sort((a, b) =>
       parseISO(b.date).getTime() - parseISO(a.date).getTime()
     );
     if (sorted.length > 0) {
@@ -102,19 +110,17 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
     return sorted;
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    console.warn(`[DATA SERVICE] Live fetch failed: ${errorMsg}. Attempting cache restoration.`);
+    console.warn(`[DATA SERVICE] Direct fetch failed (Likely CORS or Network): ${errorMsg}. Attempting cache restoration.`);
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
         if (parsed?.data && Array.isArray(parsed.data)) {
-          const ageMinutes = Math.round((Date.now() - (parsed.timestamp || 0)) / 60000);
-          console.info(`[DATA SERVICE] Cache hit successful. Restored ${parsed.data.length} records. Data age: ${ageMinutes}m.`);
           return parsed.data;
         }
       } catch { /* ignored */ }
     }
-    console.warn("[DATA SERVICE] Critical failure: No live data and no valid cache. Falling back to local mock storage.");
+    console.warn("[DATA SERVICE] Critical failure: Using local mock data.");
     return [...MOCK_DRAWS].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
   }
 }

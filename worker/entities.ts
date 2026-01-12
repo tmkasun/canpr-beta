@@ -1,8 +1,8 @@
 /**
- * Minimal real-world demo: One Durable Object instance per entity (User, ChatBoard, CRSProfile), with Indexes for listing.
+ * Minimal real-world demo: One Durable Object instance per entity (User, ChatBoard), with Indexes for listing.
  */
 import { IndexedEntity } from "./core-utils";
-import type { User, Chat, ChatMessage, CRSProfile } from "@shared/types";
+import type { User, Chat, ChatMessage } from "@shared/types";
 import { MOCK_CHAT_MESSAGES, MOCK_CHATS, MOCK_USERS } from "@shared/mock-data";
 // USER ENTITY: one DO instance per user
 export class UserEntity extends IndexedEntity<User> {
@@ -31,29 +31,4 @@ export class ChatBoardEntity extends IndexedEntity<ChatBoardState> {
     await this.mutate(s => ({ ...s, messages: [...s.messages, msg] }));
     return msg;
   }
-}
-// CRS PROFILE ENTITY: persistent storage for user-calculated scores
-export class CRSProfileEntity extends IndexedEntity<CRSProfile> {
-  static readonly entityName = "profile";
-  static readonly indexName = "profiles";
-  static readonly initialState: CRSProfile = {
-    id: "",
-    label: "New Estimate",
-    date: new Date().toISOString(),
-    score: 0
-  };
-  static readonly seedData: CRSProfile[] = [
-    {
-      id: 'demo-1',
-      label: 'Demo Profile (Master\'s)',
-      date: new Date(Date.now() - 86400000).toISOString(),
-      score: 485
-    },
-    {
-      id: 'demo-2',
-      label: 'CEC Target (Goal)',
-      date: new Date(Date.now() - 7*86400000).toISOString(),
-      score: 536
-    }
-  ];
 }

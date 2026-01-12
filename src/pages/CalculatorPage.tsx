@@ -5,47 +5,26 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Calculator, Save, Trash2, History, ArrowRight, Sparkles, Loader2, Target, Trophy, Clock, AlertTriangle } from 'lucide-react';
+import { Calculator, Save, Trash2, History, ArrowRight, Sparkles, Target, Trophy, Clock, AlertTriangle } from 'lucide-react';
 import { useDrawData } from '@/hooks/use-draw-data';
-import { api } from '@/lib/api-client';
-import { CRSProfile } from '@shared/types';
+import { useProfiles } from '@/hooks/use-profiles';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 export function CalculatorPage() {
-  const queryClient = useQueryClient();
   const { latestDraw, draws } = useDrawData();
+  const { profiles, saveProfile, deleteProfile } = useProfiles();
   const [manualScore, setManualScore] = useState<string>("500");
   const [label, setLabel] = useState<string>("My Target Profile");
   const latestCutoff = latestDraw?.crsScore ?? 500;
   const cecCutoff = draws.find(d => d.programType === 'CEC')?.crsScore ?? 500;
-  const { data: profilesData } = useQuery({
-    queryKey: ['profiles'],
-    queryFn: () => api<{ items: CRSProfile[] }>('/api/profiles'),
-  });
   const savedProfiles = useMemo(() => {
-    return (profilesData?.items || []).sort((a, b) =>
+    return [...profiles].sort((a, b) =>
       parseISO(b.date).getTime() - parseISO(a.date).getTime()
     );
-  }, [profilesData]);
-  const saveMutation = useMutation({
-    mutationFn: (newProfile: CRSProfile) => api('/api/profiles', { method: 'POST', body: JSON.stringify(newProfile) }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profiles'] });
-      toast.success("Benchmark Saved", { description: "Your manual score has been persisted." });
-    },
-    onError: () => toast.error("Storage Error", { description: "Failed to persist your profile estimate." }),
-  });
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => api(`/api/profiles/${id}`, { method: 'DELETE' }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profiles'] });
-      toast.info("Profile Removed");
-    },
-  });
+  }, [profiles]);
   const score = parseInt(manualScore) || 0;
   const qualifies = score >= latestCutoff;
   const gap = latestCutoff - score;
@@ -54,13 +33,15 @@ export function CalculatorPage() {
       toast.error("Invalid Score", { description: "CRS scores must be between 1 and 1200." });
       return;
     }
-    const newProfile: CRSProfile = {
-      id: crypto.randomUUID(),
-      label: label.trim() || "Manual Entry",
-      score,
-      date: new Date().toISOString()
-    };
-    saveMutation.mutate(newProfile);
+    try {
+      saveProfile({
+        label: label.trim() || "Manual Entry",
+        score
+      });
+      toast.success("Benchmark Saved", { description: "Your manual score has been persisted locally." });
+    } catch (err) {
+      toast.error("Storage Error", { description: "Failed to persist your profile estimate." });
+    }
   };
   return (
     <AppLayout container>
@@ -100,10 +81,9 @@ export function CalculatorPage() {
                 </div>
                 <Button
                   onClick={handleSave}
-                  disabled={saveMutation.isPending}
                   className="w-full bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest text-xs h-12 shadow-xl shadow-primary/20 rounded-xl"
                 >
-                  {saveMutation.isPending ? <Loader2 className="animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                  <Save className="h-4 w-4 mr-2" />
                   Save Benchmark Profile
                 </Button>
               </CardContent>
@@ -142,7 +122,15 @@ export function CalculatorPage() {
                               <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Points</div>
                               <div className="text-xl font-black text-primary tabular-nums">{p.score}</div>
                            </div>
-                           <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-destructive rounded-lg" onClick={() => deleteMutation.mutate(p.id)}>
+                           <Button 
+                             variant="ghost" 
+                             size="icon" 
+                             className="size-8 text-muted-foreground hover:text-destructive rounded-lg" 
+                             onClick={() => {
+                               deleteProfile(p.id);
+                               toast.info("Profile Removed");
+                             }}
+                           >
                              <Trash2 className="size-4" />
                            </Button>
                         </div>
