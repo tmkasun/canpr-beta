@@ -4,6 +4,25 @@ import { UserEntity, ChatBoardEntity } from "./entities";
 import { ok, bad } from './core-utils';
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.get('/api/test', (c) => c.json({ success: true, data: { name: 'CF Workers Demo' }}));
+  // IRCC Data Proxy to bypass browser CORS
+  app.get('/api/ircc-proxy', async (c) => {
+    try {
+      const IRCC_URL = "https://www.canada.ca/content/dam/ircc/documents/json/ee_rounds_123_en.json";
+      const response = await fetch(IRCC_URL, {
+        headers: {
+          'User-Agent': 'MapleMetrics/1.0 (Cloudflare Worker; Proxy)',
+          'Accept': 'application/json'
+        }
+      });
+      if (!response.ok) {
+        return bad(c, `IRCC Gateway Error: ${response.status}`);
+      }
+      const data = await response.json();
+      return c.json(data);
+    } catch (err) {
+      return bad(c, `Proxy failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  });
   // USERS
   app.get('/api/users', async (c) => {
     await UserEntity.ensureSeed(c.env);

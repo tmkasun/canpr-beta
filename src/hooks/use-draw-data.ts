@@ -6,16 +6,19 @@ export function useDrawData() {
   const query = useQuery({
     queryKey: ["draws"],
     queryFn: fetchLatestDraws,
-    staleTime: 1000 * 60 * 5, // 5 minutes cache
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
+    staleTime: 1000 * 60 * 10, // 10 minutes cache
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
-  // Guarantee chronological descending order for all consumers with stable reference
   const draws = useMemo(() => {
     const rawDraws = query.data ?? [];
     return [...rawDraws].sort((a, b) => {
       const timeA = parseISO(a.date).getTime();
       const timeB = parseISO(b.date).getTime();
+      // Handle potential invalid dates (NaN)
+      if (isNaN(timeA) && isNaN(timeB)) return 0;
+      if (isNaN(timeA)) return 1;
+      if (isNaN(timeB)) return -1;
       return timeB - timeA;
     });
   }, [query.data]);
@@ -25,8 +28,10 @@ export function useDrawData() {
   const yearStart = useMemo(() => startOfYear(new Date(currentYear, 0, 1)), [currentYear]);
   const averageCrsAllTime = useMemo(() => {
     if (draws.length === 0) return 0;
-    const sum = draws.reduce((acc, d) => acc + (Number(d.crsScore) || 0), 0);
-    return Math.round(sum / draws.length);
+    const validScores = draws.map(d => Number(d.crsScore)).filter(s => !isNaN(s) && s > 0);
+    if (validScores.length === 0) return 0;
+    const sum = validScores.reduce((acc, s) => acc + s, 0);
+    return Math.round(sum / validScores.length);
   }, [draws]);
   const totalItasYearToDate = useMemo(() => {
     return draws
@@ -38,7 +43,7 @@ export function useDrawData() {
           return false;
         }
       })
-      .reduce((acc, d) => acc + (Number(d.itasIssued) || 0), 0);
+      .reduce((acc, d) => acc + (Math.max(0, Number(d.itasIssued) || 0)), 0);
   }, [draws, yearStart]);
   return {
     ...query,
