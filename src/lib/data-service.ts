@@ -46,14 +46,18 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
       try {
         if (!r.drawNumber || !r.drawDate) return acc;
         const cleanName = stripHtml(r.drawName || "Express Entry Round");
-        // IRCC dates can contain "EST/EDT" suffixes that break native ISO parsing
-        const rawDate = r.drawDate.trim().replace(/\s+(EST|EDT|UTC).*$/, "");
+        // Refined date parsing: Remove hidden control characters and normalize timezones
+        const rawDate = r.drawDate
+          .trim()
+          .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width characters
+          .replace(/\s+(EST|EDT|UTC|PST|PDT).*$/, ""); // Strip timezone suffixes
         let dateIso = "";
         const parsedIso = parseISO(rawDate);
         if (isValid(parsedIso)) {
           dateIso = format(parsedIso, "yyyy-MM-dd");
         } else {
-          const formats = ["MMMM d, yyyy", "MMM d, yyyy", "yyyy-MM-dd", "dd/MM/yyyy"];
+          // Fallback formats for varying IRCC locale strings
+          const formats = ["MMMM d, yyyy", "MMM d, yyyy", "yyyy-MM-dd", "dd/MM/yyyy", "d MMMM yyyy"];
           for (const fmt of formats) {
             try {
               const p = parse(rawDate, fmt, new Date());
@@ -66,11 +70,11 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
         }
         if (!dateIso) return acc;
         const crsValue = safeParseInt(r.drawCRS);
-        // Defensive check: filter out impossible or placeholder scores
+        // Explicit check for valid CRS scores (0-1200) to filter out anomaly records
         if (crsValue <= 0 || crsValue > 1200) return acc;
         const entry: DrawEntry = {
-          // Absolute uniqueness even with duplicate draw numbers in source
-          id: `ircc-${safeParseInt(r.drawNumber, idx)}-${idx}`,
+          // Absolute uniqueness: prefix + drawNumber + index to prevent React key collisions
+          id: `ircc-${safeParseInt(r.drawNumber, idx)}-idx-${idx}`,
           drawNumber: safeParseInt(r.drawNumber),
           date: dateIso,
           programType: determineProgramType(cleanName),
@@ -80,7 +84,7 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
         };
         acc.push(entry);
       } catch (innerError) {
-        // Skip corrupted individual records
+        console.warn("[DATA SERVICE] Skipping corrupted record:", innerError);
       }
       return acc;
     }, []);
@@ -95,6 +99,7 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
     }
     return sorted;
   } catch (error) {
+    console.error("[DATA SERVICE] Fetch failed, attempting cache:", error);
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
       try {

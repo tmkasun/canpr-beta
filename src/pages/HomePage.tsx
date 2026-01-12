@@ -57,7 +57,11 @@ export function HomePage() {
   const previousDraw = useMemo(() => filteredDraws[1] ?? null, [filteredDraws]);
   const latestScore = latestDraw?.crsScore ?? 0;
   const prevScore = previousDraw?.crsScore ?? 0;
-  const crsDiff = latestScore > 0 && prevScore > 0 ? latestScore - prevScore : 0;
+  // Refined trend calculation to handle zero-values or missing history
+  const crsDiff = useMemo(() => {
+    if (latestScore <= 0 || prevScore <= 0) return 0;
+    return latestScore - prevScore;
+  }, [latestScore, prevScore]);
   const isUpTrend = crsDiff < 0;
   const totalItasYearToDate = useMemo(() => {
     const yearStart = startOfYear(new Date(currentYear, 0, 1));
@@ -84,11 +88,9 @@ export function HomePage() {
     const d = parseISO(latestDraw.date);
     return isValid(d) ? format(d, 'MMM d, yyyy') : '---';
   }, [latestDraw]);
-  // Personal Status Logic Enhancement
   const userScore = latestProfile?.score ?? null;
   const benchmarkScore = useMemo(() => {
     if (latestScore > 0) return latestScore;
-    // Fallback to category average if no specific latest draw for filter
     if (filteredDraws.length > 0) {
       const sum = filteredDraws.slice(0, 10).reduce((acc, d) => acc + d.crsScore, 0);
       return Math.round(sum / Math.min(filteredDraws.length, 10));
@@ -99,11 +101,13 @@ export function HomePage() {
   const isQualified = personalGap !== null && personalGap >= 0;
   const benchmarkLabel = latestScore > 0 ? "Latest Cutoff" : "Category Average";
   const marketSummary = useMemo(() => {
-    if (filteredDraws.length < 2) return "Loading market data...";
+    if (isLoading) return "Analyzing market trends...";
+    if (filteredDraws.length < 2) return `Insufficient data points for the ${selectedProgram === 'all' ? 'current' : selectedProgram} segment to derive a trend.`;
     const avgScore = Math.round(filteredDraws.slice(0, 5).reduce((a, b) => a + b.crsScore, 0) / Math.min(filteredDraws.length, 5));
-    const direction = crsDiff > 0 ? "ascending" : "cooling";
-    return `The ${selectedProgram === 'all' ? 'general' : selectedProgram} segment is currently ${direction}; scores have averaged ${avgScore} pts recently.`;
-  }, [filteredDraws, selectedProgram, crsDiff]);
+    const direction = crsDiff > 0 ? "ascending" : crsDiff < 0 ? "cooling" : "stable";
+    const programName = selectedProgram === 'all' ? 'general' : selectedProgram;
+    return `The ${programName} segment is currently ${direction}; scores have averaged ${avgScore} pts in recent rounds.`;
+  }, [filteredDraws, selectedProgram, crsDiff, isLoading]);
   if (isLoading && draws.length === 0) {
     return (
       <AppLayout container>
@@ -157,7 +161,7 @@ export function HomePage() {
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <Select value={selectedProgram} onValueChange={(v) => setSelectedProgram(v as ProgramType | 'all')}>
-              <SelectTrigger className="w-full sm:w-[180px] h-12 rounded-xl border-muted bg-card shadow-sm font-bold">
+              <SelectTrigger className="w-full sm:w-[200px] h-12 rounded-xl border-muted bg-card shadow-sm font-bold">
                 <SelectValue placeholder="All Programs" />
               </SelectTrigger>
               <SelectContent className="rounded-xl shadow-2xl">
@@ -182,7 +186,7 @@ export function HomePage() {
             value={latestScore || "---"}
             icon={Trophy}
             description={latestDraw?.programType ? `${latestDraw.programType} Round` : "No draw found"}
-            trend={latestScore > 0 && prevScore > 0 ? { value: Math.abs(crsDiff), isUp: isUpTrend } : undefined}
+            trend={crsDiff !== 0 ? { value: Math.abs(crsDiff), isUp: isUpTrend } : undefined}
           />
           <StatCard
             title={`ITAs (${currentYear})`}
@@ -213,7 +217,7 @@ export function HomePage() {
           />
         </div>
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-bold tracking-tight">Market Intelligence</h2>
@@ -221,9 +225,9 @@ export function HomePage() {
                   <Info className="size-3 mr-1" /> Category Analysis
                 </Badge>
               </div>
-              <p className="text-sm text-muted-foreground font-medium">{marketSummary}</p>
+              <p className="text-sm text-muted-foreground font-medium max-w-2xl">{marketSummary}</p>
             </div>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
               <div className="flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-xl border border-border shadow-inner">
                 <Filter className="size-3.5 text-muted-foreground" />
                 <Select value={rangeLimit} onValueChange={setRangeLimit}>
@@ -330,7 +334,7 @@ export function HomePage() {
                 </motion.div>
               ))}
             </AnimatePresence>
-            {filteredDraws.length === 0 && (
+            {filteredDraws.length === 0 && !isLoading && (
               <div className="py-16 text-center text-muted-foreground italic bg-muted/20 rounded-xl border border-dashed border-border/60">
                 <Info className="size-8 mx-auto mb-3 opacity-20" />
                 No draw data found matching the selected program criteria.

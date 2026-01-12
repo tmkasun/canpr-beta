@@ -29,9 +29,9 @@ export function DrawPredictor({ prediction }: DrawPredictorProps) {
             <div className="text-3xl font-black tracking-tighter text-foreground tabular-nums flex items-baseline gap-1">
               {predictedRange ? (
                 <>
-                  <span className="text-primary">{predictedRange.low}</span>
+                  <span className="text-primary font-[900]">{predictedRange.low}</span>
                   <span className="text-muted-foreground/30 text-xl">-</span>
-                  <span className="text-primary">{predictedRange.high}</span>
+                  <span className="text-primary font-[900]">{predictedRange.high}</span>
                 </>
               ) : "---"}
             </div>
@@ -40,9 +40,9 @@ export function DrawPredictor({ prediction }: DrawPredictorProps) {
           <div className="flex flex-col items-end">
             <div className={cn(
               "p-2 rounded-xl mb-1 transition-colors duration-300",
-              trendSignal === 'Rising' ? "bg-rose-50 dark:bg-rose-950/20 text-rose-600" :
-              trendSignal === 'Falling' ? "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600" :
-              "bg-blue-50 dark:bg-blue-950/20 text-blue-600"
+              trendSignal === 'Rising' ? "bg-rose-50 dark:bg-rose-950/20 text-rose-600 shadow-sm" :
+              trendSignal === 'Falling' ? "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 shadow-sm" :
+              "bg-blue-50 dark:bg-blue-950/20 text-blue-600 shadow-sm"
             )}>
               {trendSignal === 'Rising' ? <TrendingUp className="size-5" /> :
                trendSignal === 'Falling' ? <TrendingDown className="size-5" /> :
@@ -52,20 +52,20 @@ export function DrawPredictor({ prediction }: DrawPredictorProps) {
           </div>
         </div>
         <div className="space-y-3">
-          <div className="bg-muted/30 p-4 rounded-xl border border-border/50 transition-colors">
+          <div className="bg-muted/30 p-4 rounded-xl border border-border/50 transition-colors shadow-inner">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <Zap className="size-3.5 text-primary" />
+                <Zap className="size-3.5 text-primary fill-primary/20" />
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Confidence Level</span>
               </div>
               <span className="text-xs font-black tabular-nums">{scoreConfidence}%</span>
             </div>
-            <div className="h-2 w-full bg-muted rounded-full overflow-hidden border border-border/20">
+            <div className="h-2 w-full bg-muted/60 rounded-full overflow-hidden border border-border/20 shadow-inner">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${scoreConfidence}%` }}
-                transition={{ duration: 1, ease: "easeOut" }}
-                className="h-full bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.4)]"
+                transition={{ duration: 1.2, ease: "easeOut" }}
+                className="h-full bg-primary shadow-[0_0_12px_rgba(216,6,33,0.5)]"
               />
             </div>
           </div>
@@ -80,7 +80,7 @@ export function DrawPredictor({ prediction }: DrawPredictorProps) {
             </TooltipTrigger>
             <TooltipContent className="max-w-[220px] text-[11px] p-4 space-y-2 bg-card border-border shadow-2xl rounded-xl">
               <p className="font-bold text-primary">Algorithmic Forecast</p>
-              <p className="leading-relaxed">Scores are projected using a 15-draw rolling average, frequency variance, and current program-specific momentum.</p>
+              <p className="leading-relaxed font-medium">Scores are projected using a 15-draw rolling average, frequency variance, and current program-specific momentum.</p>
               <p className="text-primary font-bold pt-1 border-t border-dashed mt-2">Disclaimer: Statistical estimates only. Not official IRCC advice.</p>
             </TooltipContent>
           </Tooltip>
