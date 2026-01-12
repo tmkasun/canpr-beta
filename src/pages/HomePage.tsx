@@ -11,14 +11,17 @@ import {
   Zap,
   BarChart3,
   LineChart,
-  Filter
+  Filter,
+  Info
 } from 'lucide-react';
 import { format, parseISO, differenceInDays, formatDistanceToNow, isValid, startOfYear, isAfter } from 'date-fns';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { ScoreTrendChart } from '@/components/dashboard/ScoreTrendChart';
 import { InvitationBarChart } from '@/components/dashboard/InvitationBarChart';
+import { DrawPredictor } from '@/components/dashboard/DrawPredictor';
 import { useDrawData } from '@/hooks/use-draw-data';
+import { usePredictions } from '@/hooks/use-predictions';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -49,6 +52,7 @@ export function HomePage() {
     const limit = parseInt(rangeLimit, 10);
     return filteredDraws.slice(0, limit);
   }, [filteredDraws, rangeLimit]);
+  const prediction = usePredictions(filteredDraws);
   const latestDraw = useMemo(() => filteredDraws[0] ?? null, [filteredDraws]);
   const previousDraw = useMemo(() => filteredDraws[1] ?? null, [filteredDraws]);
   const latestScore = latestDraw?.crsScore ?? 0;
@@ -81,22 +85,20 @@ export function HomePage() {
     return isValid(d) ? format(d, 'MMM d, yyyy') : '---';
   }, [latestDraw]);
   const userScore = latestProfile?.score ?? null;
-  const scoreLabel = userScore !== null ? "Your Saved Profile" : "No Profile Set";
   const personalGap = (userScore !== null && latestScore > 0) ? userScore - latestScore : null;
   const isQualified = personalGap !== null && personalGap >= 0;
+  const marketSummary = useMemo(() => {
+    if (filteredDraws.length < 2) return "";
+    const avgScore = Math.round(filteredDraws.slice(0, 5).reduce((a, b) => a + b.crsScore, 0) / 5);
+    const direction = crsDiff > 0 ? "climbing" : "cooling";
+    return `The ${selectedProgram === 'all' ? 'General' : selectedProgram} market is ${direction}; scores average ${avgScore} pts recently.`;
+  }, [filteredDraws, selectedProgram, crsDiff]);
   if (isLoading && draws.length === 0) {
     return (
       <AppLayout container>
         <div className="space-y-8">
-          <div className="flex flex-col md:flex-row justify-between gap-6">
-             <div className="space-y-3">
-               <Skeleton className="h-10 w-72 rounded-lg" />
-               <Skeleton className="h-4 w-56 rounded-md" />
-             </div>
-             <Skeleton className="h-12 w-44 rounded-xl" />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-32 rounded-xl" />)}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {Array(5).fill(0).map((_, i) => <Skeleton key={i} className="h-40 rounded-xl" />)}
           </div>
         </div>
       </AppLayout>
@@ -126,7 +128,7 @@ export function HomePage() {
               )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-muted-foreground text-sm font-medium">IRCC Intelligence Terminal • {currentYear}</p>
+              <p className="text-muted-foreground text-sm font-medium">IRCC Intelligence Terminal �� {currentYear}</p>
               {dataUpdatedAt && (
                 <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 tabular-nums bg-muted/50 px-2 py-0.5 rounded-md border">
                   <Clock className="size-3" />
@@ -156,7 +158,7 @@ export function HomePage() {
             </Link>
           </div>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <StatCard
             title="Latest Cutoff"
             value={latestScore || "---"}
@@ -170,11 +172,12 @@ export function HomePage() {
             icon={Users}
             description={`Filtered ${selectedProgram === 'all' ? 'Total' : selectedProgram}`}
           />
+          <DrawPredictor prediction={prediction} />
           <StatCard
             title="Your Status"
             value={userScore !== null ? userScore : "---"}
             icon={userScore !== null ? UserCheck : Zap}
-            description={scoreLabel}
+            description={userScore !== null ? "Your Saved Profile" : "No Profile Set"}
             trend={personalGap !== null ? { value: Math.abs(personalGap), isUp: isQualified } : undefined}
             link="/calculator"
             linkText={userScore !== null ? "Update Profile" : "Start Calculation"}
@@ -190,8 +193,13 @@ export function HomePage() {
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="space-y-1">
-              <h2 className="text-xl font-bold tracking-tight">Deep Trend Analysis</h2>
-              <p className="text-sm text-muted-foreground">Historical performance metrics visualization</p>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold tracking-tight">Deep Trend Analysis</h2>
+                <Badge variant="outline" className="text-[10px] uppercase h-5 font-black border-red-200 text-red-600 bg-red-50 dark:bg-red-950/20">
+                  <Info className="size-3 mr-1" /> Market Intelligence
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">{marketSummary}</p>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
               <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-xl border">
@@ -232,15 +240,15 @@ export function HomePage() {
               transition={{ duration: 0.2 }}
               className="grid gap-6 grid-cols-1 lg:grid-cols-3"
             >
-              <ScoreTrendChart 
-                data={rangedDraws} 
-                isLoading={isLoading && draws.length === 0} 
-                mode={analyticsMode} 
+              <ScoreTrendChart
+                data={rangedDraws}
+                isLoading={isLoading && draws.length === 0}
+                mode={analyticsMode}
               />
-              <InvitationBarChart 
-                data={rangedDraws} 
-                isLoading={isLoading && draws.length === 0} 
-                mode={analyticsMode} 
+              <InvitationBarChart
+                data={rangedDraws}
+                isLoading={isLoading && draws.length === 0}
+                mode={analyticsMode}
               />
             </motion.div>
           </AnimatePresence>
