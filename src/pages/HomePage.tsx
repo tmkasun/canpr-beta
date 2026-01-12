@@ -34,11 +34,11 @@ import { api } from '@/lib/api-client';
 import { CRSProfile, ProgramType } from '@shared/types';
 import { cn } from '@/lib/utils';
 export function HomePage() {
-  const { draws, isLoading, isFetching, currentYear, dataUpdatedAt, refetch } = useDrawData();
+  const { draws, isLoading, isFetching, currentYear, dataUpdatedAt, refetch, averageCrsAllTime } = useDrawData();
   const [selectedProgram, setSelectedProgram] = useState<ProgramType | 'all'>('all');
   const [analyticsMode, setAnalyticsMode] = useState<'crs' | 'itas'>('crs');
   const [rangeLimit, setRangeLimit] = useState<string>('20');
-  const { data: profilesData } = useQuery({
+  const { data: profilesData, isLoading: profilesLoading } = useQuery({
     queryKey: ['profiles'],
     queryFn: () => api<{ items: CRSProfile[] }>('/api/profiles'),
     staleTime: 1000 * 60 * 5,
@@ -84,9 +84,20 @@ export function HomePage() {
     const d = parseISO(latestDraw.date);
     return isValid(d) ? format(d, 'MMM d, yyyy') : '---';
   }, [latestDraw]);
+  // Personal Status Logic Enhancement
   const userScore = latestProfile?.score ?? null;
-  const personalGap = (userScore !== null && latestScore > 0) ? userScore - latestScore : null;
+  const benchmarkScore = useMemo(() => {
+    if (latestScore > 0) return latestScore;
+    // Fallback to category average if no specific latest draw for filter
+    if (filteredDraws.length > 0) {
+      const sum = filteredDraws.slice(0, 10).reduce((acc, d) => acc + d.crsScore, 0);
+      return Math.round(sum / Math.min(filteredDraws.length, 10));
+    }
+    return averageCrsAllTime;
+  }, [latestScore, filteredDraws, averageCrsAllTime]);
+  const personalGap = (userScore !== null && benchmarkScore > 0) ? userScore - benchmarkScore : null;
   const isQualified = personalGap !== null && personalGap >= 0;
+  const benchmarkLabel = latestScore > 0 ? "Latest Cutoff" : "Category Average";
   const marketSummary = useMemo(() => {
     if (filteredDraws.length < 2) return "Loading market data...";
     const avgScore = Math.round(filteredDraws.slice(0, 5).reduce((a, b) => a + b.crsScore, 0) / Math.min(filteredDraws.length, 5));
@@ -160,7 +171,7 @@ export function HomePage() {
             </Select>
             <Link to="/calculator" className="w-full">
               <Button size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-xl shadow-primary/20 px-8 font-bold rounded-xl h-12">
-                Predict Your Score
+                Optimize My Profile
               </Button>
             </Link>
           </div>
@@ -170,7 +181,7 @@ export function HomePage() {
             title="Latest Cutoff"
             value={latestScore || "---"}
             icon={Trophy}
-            description={latestDraw?.programType ? `${latestDraw.programType} Round` : "Specific round"}
+            description={latestDraw?.programType ? `${latestDraw.programType} Round` : "No draw found"}
             trend={latestScore > 0 && prevScore > 0 ? { value: Math.abs(crsDiff), isUp: isUpTrend } : undefined}
           />
           <StatCard
@@ -180,16 +191,20 @@ export function HomePage() {
             description={selectedProgram === 'all' ? 'Total Issued' : `${selectedProgram} Rounds`}
           />
           <DrawPredictor prediction={prediction} />
-          <StatCard
-            title="Personal Status"
-            value={userScore !== null ? userScore : "N/A"}
-            icon={userScore !== null ? UserCheck : Zap}
-            description={userScore !== null ? latestProfile?.label : "No Profile Set"}
-            trend={personalGap !== null ? { value: Math.abs(personalGap), isUp: isQualified } : undefined}
-            link="/calculator"
-            linkText={userScore !== null ? "Optimize Profile" : "Run Calculation"}
-            className={cn(userScore === null && "border-dashed opacity-80")}
-          />
+          {profilesLoading ? (
+            <Skeleton className="h-full min-h-[160px] rounded-xl" />
+          ) : (
+            <StatCard
+              title="Personal Status"
+              value={userScore !== null ? userScore : "N/A"}
+              icon={userScore !== null ? UserCheck : Zap}
+              description={userScore !== null ? `Vs ${benchmarkLabel}` : "No Profile Set"}
+              trend={personalGap !== null ? { value: Math.abs(personalGap), isUp: isQualified } : undefined}
+              link="/calculator"
+              linkText={userScore !== null ? "Optimize Profile" : "Run Calculation"}
+              className={cn(userScore === null && "border-dashed border-muted-foreground/30")}
+            />
+          )}
           <StatCard
             title="Last Draw"
             value={lastDate}

@@ -62,12 +62,12 @@ export function StatCard({
           </div>
           {(description || (trend && trend.value !== 0)) && (
             <div className="mt-2 flex items-center gap-1.5 flex-wrap min-h-[22px]">
-              {trend && trend.value !== 0 && (
+              {trend && (
                 <span className={cn(
-                  "flex items-center text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter",
+                  "flex items-center text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter border",
                   trend.isUp
-                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400"
-                    : "bg-rose-100 text-rose-700 dark:bg-rose-950/20 dark:text-rose-400"
+                    ? "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/50"
+                    : "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/50"
                 )}>
                   {trend.isUp ? <TrendingUp className="mr-1 h-3 w-3" /> : <TrendingDown className="mr-1 h-3 w-3" />}
                   {trend.value} pts
@@ -82,9 +82,9 @@ export function StatCard({
           )}
         </CardContent>
         {link && (
-          <CardFooter className="px-6 py-3 border-t border-dashed bg-muted/5 group-hover:bg-muted/10 transition-colors">
-            <Link 
-              to={link} 
+          <CardFooter className="px-6 py-3 border-t border-dashed bg-muted/5 group-hover:bg-muted/10 transition-colors mt-auto">
+            <Link
+              to={link}
               className="flex items-center justify-between w-full text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors group/link"
             >
               <span>{linkText || "View Details"}</span>
