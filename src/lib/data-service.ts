@@ -46,6 +46,7 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
       try {
         if (!r.drawNumber || !r.drawDate) return acc;
         const cleanName = stripHtml(r.drawName || "Express Entry Round");
+        // Robust date parsing for varying IRCC formats
         const rawDate = r.drawDate
           .trim()
           .replace(/[\u200B-\u200D\uFEFF]/g, '')
@@ -80,11 +81,11 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
         };
         acc.push(entry);
       } catch (innerError) {
-        console.warn("[DATA SERVICE] Skipping record due to parsing error:", innerError instanceof Error ? innerError.message : String(innerError));
+        console.warn("[DATA SERVICE] Parse error for record:", innerError);
       }
       return acc;
     }, []);
-    const sorted = normalized.sort((a, b) =>
+    const sorted = [...normalized].sort((a, b) =>
       parseISO(b.date).getTime() - parseISO(a.date).getTime()
     );
     if (sorted.length > 0) {
@@ -96,16 +97,19 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
     return sorted;
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error(`[DATA SERVICE] Fetch failed: ${errorMsg}. Falling back to cache/mock.`);
+    console.warn(`[DATA SERVICE] Live fetch failed: ${errorMsg}. Attempting cache restoration.`);
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
         if (parsed?.data && Array.isArray(parsed.data)) {
+          const ageMinutes = Math.round((Date.now() - (parsed.timestamp || 0)) / 60000);
+          console.info(`[DATA SERVICE] Cache hit successful. Data age: ${ageMinutes}m.`);
           return parsed.data;
         }
       } catch { /* ignored */ }
     }
-    return MOCK_DRAWS.sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
+    console.warn("[DATA SERVICE] Critical failure: No live data and no valid cache. Falling back to local mock storage.");
+    return [...MOCK_DRAWS].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
   }
 }

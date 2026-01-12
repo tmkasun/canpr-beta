@@ -11,7 +11,8 @@ interface StatCardProps {
   description?: string;
   trend?: {
     value: number;
-    isUp: boolean;
+    isPositive: boolean;
+    iconDirection?: 'up' | 'down';
   };
   link?: string;
   linkText?: string;
@@ -27,6 +28,15 @@ export function StatCard({
   linkText,
   className
 }: StatCardProps) {
+  const renderTrendIcon = () => {
+    if (!trend) return null;
+    const direction = trend.iconDirection || (trend.isPositive ? 'up' : 'down');
+    return direction === 'up' ? (
+      <TrendingUp className="mr-1 h-3 w-3" />
+    ) : (
+      <TrendingDown className="mr-1 h-3 w-3" />
+    );
+  };
   return (
     <motion.div
       whileHover={{ y: -4 }}
@@ -37,12 +47,12 @@ export function StatCard({
         "overflow-hidden border border-border shadow-sm transition-all duration-300 hover:shadow-md hover:border-primary group bg-card flex flex-col h-full",
         className
       )}>
-        <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+        <CardHeader className="flex flex-row items-center justify-between pb-1.5 space-y-0">
           <CardTitle className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/90">
             {title}
           </CardTitle>
-          <div className="p-2 rounded-xl bg-muted group-hover:bg-primary group-hover:shadow-[0_0_15px_-3px_rgba(220,38,38,0.4)] transition-all duration-300">
-            <Icon className="h-4 w-4 text-primary group-hover:text-primary-foreground transition-colors duration-300" />
+          <div className="p-1.5 rounded-xl bg-muted group-hover:bg-primary group-hover:shadow-[0_0_15px_-3px_rgba(216,6,33,0.4)] transition-all duration-300">
+            <Icon className="h-3.5 w-3.5 text-primary group-hover:text-primary-foreground transition-colors duration-300" />
           </div>
         </CardHeader>
         <CardContent className="flex-1">
@@ -64,12 +74,12 @@ export function StatCard({
             <div className="mt-2 flex items-center gap-1.5 flex-wrap min-h-[22px]">
               {trend && (
                 <span className={cn(
-                  "flex items-center text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter border",
-                  trend.isUp
+                  "flex items-center text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter border transition-colors",
+                  trend.isPositive
                     ? "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/50"
                     : "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/50"
                 )}>
-                  {trend.isUp ? <TrendingUp className="mr-1 h-3 w-3" /> : <TrendingDown className="mr-1 h-3 w-3" />}
+                  {renderTrendIcon()}
                   {trend.value} pts
                 </span>
               )}
