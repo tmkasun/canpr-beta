@@ -10,15 +10,15 @@ export function useDrawData() {
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
   });
-  const rawDraws = query.data ?? [];
   // Guarantee chronological descending order for all consumers with stable reference
   const draws = useMemo(() => {
+    const rawDraws = query.data ?? [];
     return [...rawDraws].sort((a, b) => {
       const timeA = parseISO(a.date).getTime();
       const timeB = parseISO(b.date).getTime();
       return timeB - timeA;
     });
-  }, [rawDraws]);
+  }, [query.data]);
   const latestDraw = useMemo(() => draws[0] ?? null, [draws]);
   const previousDraw = useMemo(() => draws[1] ?? null, [draws]);
   const currentYear = useMemo(() => new Date().getFullYear(), []);
