@@ -16,8 +16,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface InvitationBarChartProps {
   data: DrawEntry[];
   isLoading?: boolean;
+  mode?: 'crs' | 'itas';
 }
-export function InvitationBarChart({ data, isLoading }: InvitationBarChartProps) {
+export function InvitationBarChart({ data, isLoading, mode = 'crs' }: InvitationBarChartProps) {
   if (isLoading) {
     return (
       <Card className="shadow-soft border-none">
@@ -31,6 +32,7 @@ export function InvitationBarChart({ data, isLoading }: InvitationBarChartProps)
       </Card>
     );
   }
+  const isCrsMode = mode === 'crs';
   const chartData = [...data]
     .filter(entry => entry.date && isValid(parseISO(entry.date)))
     .sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime())
@@ -42,8 +44,14 @@ export function InvitationBarChart({ data, isLoading }: InvitationBarChartProps)
   return (
     <Card className="shadow-soft border-none">
       <CardHeader>
-        <CardTitle className="text-lg">Invitations Issued (ITAs)</CardTitle>
-        <CardDescription>Volume of candidates invited in last 10 draws</CardDescription>
+        <CardTitle className="text-lg">
+          {isCrsMode ? "Volume Context" : "ITA Distribution"}
+        </CardTitle>
+        <CardDescription>
+          {isCrsMode 
+            ? "Invitation volume for the last 10 rounds" 
+            : "Program-specific invitation highlights"}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="h-[300px] w-full">
@@ -61,9 +69,11 @@ export function InvitationBarChart({ data, isLoading }: InvitationBarChartProps)
                 tick={{ fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
+                tickFormatter={(val) => val.toLocaleString()}
               />
               <Tooltip
                 cursor={{ fill: 'hsl(var(--accent))', opacity: 0.4 }}
+                formatter={(value: number) => [value.toLocaleString(), "ITAs"]}
                 contentStyle={{
                   borderRadius: '12px',
                   border: 'none',
@@ -75,13 +85,22 @@ export function InvitationBarChart({ data, isLoading }: InvitationBarChartProps)
                 dataKey="itasIssued"
                 name="ITAs Issued"
                 radius={[4, 4, 0, 0]}
+                animationDuration={800}
               >
-                {chartData.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={entry.programType === 'PNP' ? '#6366f1' : entry.programType === 'CEC' ? '#10b981' : '#D80621'}
-                  />
-                ))}
+                {chartData.map((entry, index) => {
+                  let fill = '#D80621'; // Default General Red
+                  if (entry.programType === 'PNP') fill = '#6366f1';
+                  if (entry.programType === 'CEC') fill = '#10b981';
+                  if (entry.programType === 'Category-based') fill = '#a855f7';
+                  // In CRS mode, we desaturate to keep focus on the line chart
+                  return (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={fill}
+                      fillOpacity={isCrsMode ? 0.6 : 1}
+                    />
+                  );
+                })}
               </Bar>
             </BarChart>
           </ResponsiveContainer>

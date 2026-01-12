@@ -15,8 +15,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface ScoreTrendChartProps {
   data: DrawEntry[];
   isLoading?: boolean;
+  mode?: 'crs' | 'itas';
 }
-export function ScoreTrendChart({ data, isLoading }: ScoreTrendChartProps) {
+export function ScoreTrendChart({ data, isLoading, mode = 'crs' }: ScoreTrendChartProps) {
   if (isLoading) {
     return (
       <Card className="col-span-1 md:col-span-2 shadow-soft border-none">
@@ -39,11 +40,21 @@ export function ScoreTrendChart({ data, isLoading }: ScoreTrendChartProps) {
       ...entry,
       formattedDate: format(parseISO(entry.date), "MMM d, yy"),
     }));
+  const isCrs = mode === 'crs';
+  const dataKey = isCrs ? 'crsScore' : 'itasIssued';
+  const label = isCrs ? 'CRS Score' : 'Invitations';
+  const unit = isCrs ? 'pts' : 'ITAs';
   return (
     <Card className="col-span-1 md:col-span-2 shadow-soft border-none">
       <CardHeader>
-        <CardTitle className="text-lg">CRS Cutoff Score Trend</CardTitle>
-        <CardDescription>Fluctuation of minimum CRS scores over recent draws</CardDescription>
+        <CardTitle className="text-lg">
+          {isCrs ? "CRS Cutoff Score Trend" : "Invitation Volume Trend"}
+        </CardTitle>
+        <CardDescription>
+          {isCrs 
+            ? "Fluctuation of minimum CRS scores over recent draws" 
+            : "Total candidates invited per round over time"}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="h-[300px] w-full">
@@ -64,12 +75,14 @@ export function ScoreTrendChart({ data, isLoading }: ScoreTrendChartProps) {
                 dy={10}
               />
               <YAxis
-                domain={['auto', 'auto']}
+                domain={isCrs ? ['auto', 'auto'] : [0, 'auto']}
                 tick={{ fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
+                tickFormatter={(val) => val.toLocaleString()}
               />
               <Tooltip
+                formatter={(value: number) => [`${value.toLocaleString()} ${unit}`, label]}
                 contentStyle={{
                   borderRadius: '12px',
                   border: 'none',
@@ -79,13 +92,14 @@ export function ScoreTrendChart({ data, isLoading }: ScoreTrendChartProps) {
               />
               <Area
                 type="monotone"
-                dataKey="crsScore"
+                dataKey={dataKey}
                 stroke="#D80621"
                 strokeWidth={3}
                 fillOpacity={1}
                 fill="url(#scoreGradient)"
-                name="CRS Score"
+                name={label}
                 activeDot={{ r: 6, strokeWidth: 0, fill: "#D80621" }}
+                animationDuration={1000}
               />
             </AreaChart>
           </ResponsiveContainer>

@@ -8,7 +8,9 @@ import {
   RefreshCcw,
   Clock,
   UserCheck,
-  Zap
+  Zap,
+  BarChart3,
+  LineChart
 } from 'lucide-react';
 import { format, parseISO, differenceInDays, formatDistanceToNow, isValid, startOfYear, isAfter } from 'date-fns';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -20,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
@@ -29,6 +32,7 @@ import { cn } from '@/lib/utils';
 export function HomePage() {
   const { draws, isLoading, isFetching, currentYear, dataUpdatedAt, refetch } = useDrawData();
   const [selectedProgram, setSelectedProgram] = useState<ProgramType | 'all'>('all');
+  const [analyticsMode, setAnalyticsMode] = useState<'crs' | 'itas'>('crs');
   const { data: profilesData } = useQuery({
     queryKey: ['profiles'],
     queryFn: () => api<{ items: CRSProfile[] }>('/api/profiles'),
@@ -43,7 +47,7 @@ export function HomePage() {
   const latestScore = latestDraw?.crsScore ?? 0;
   const prevScore = previousDraw?.crsScore ?? 0;
   const crsDiff = latestScore > 0 && prevScore > 0 ? latestScore - prevScore : 0;
-  const isUpTrend = crsDiff < 0; 
+  const isUpTrend = crsDiff < 0;
   const totalItasYearToDate = useMemo(() => {
     const yearStart = startOfYear(new Date(currentYear, 0, 1));
     return filteredDraws
@@ -98,10 +102,10 @@ export function HomePage() {
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-3xl font-bold tracking-tight text-foreground">Executive Dashboard</h1>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => refetch()} 
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => refetch()}
                 disabled={isFetching}
                 className="h-8 w-8 rounded-full hover:bg-muted"
                 title="Refresh Live Data"
@@ -176,9 +180,39 @@ export function HomePage() {
             description={selectedProgram === 'all' ? "Across all streams" : `${selectedProgram} specific`}
           />
         </div>
-        <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-          <ScoreTrendChart data={filteredDraws} isLoading={isLoading && draws.length === 0} />
-          <InvitationBarChart data={filteredDraws} isLoading={isLoading && draws.length === 0} />
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h2 className="text-xl font-bold tracking-tight">Deep Trend Analysis</h2>
+              <p className="text-sm text-muted-foreground">Historical performance metrics visualization</p>
+            </div>
+            <ToggleGroup 
+              type="single" 
+              value={analyticsMode} 
+              onValueChange={(v) => v && setAnalyticsMode(v as 'crs' | 'itas')}
+              className="bg-muted/50 p-1 rounded-xl border"
+            >
+              <ToggleGroupItem value="crs" className="rounded-lg px-4 gap-2 data-[state=on]:bg-white data-[state=on]:shadow-sm font-bold text-xs transition-all">
+                <LineChart className="size-3.5" /> CRS Score
+              </ToggleGroupItem>
+              <ToggleGroupItem value="itas" className="rounded-lg px-4 gap-2 data-[state=on]:bg-white data-[state=on]:shadow-sm font-bold text-xs transition-all">
+                <BarChart3 className="size-3.5" /> ITA Volume
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+          <AnimatePresence mode="wait">
+            <motion.div 
+              key={analyticsMode}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="grid gap-6 grid-cols-1 lg:grid-cols-3"
+            >
+              <ScoreTrendChart data={filteredDraws} isLoading={isLoading && draws.length === 0} mode={analyticsMode} />
+              <InvitationBarChart data={filteredDraws} isLoading={isLoading && draws.length === 0} mode={analyticsMode} />
+            </motion.div>
+          </AnimatePresence>
         </div>
         <div className="rounded-2xl border bg-card shadow-lg p-6 lg:p-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
