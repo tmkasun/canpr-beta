@@ -10,7 +10,8 @@ import {
   UserCheck,
   Zap,
   BarChart3,
-  LineChart
+  LineChart,
+  Filter
 } from 'lucide-react';
 import { format, parseISO, differenceInDays, formatDistanceToNow, isValid, startOfYear, isAfter } from 'date-fns';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -33,6 +34,7 @@ export function HomePage() {
   const { draws, isLoading, isFetching, currentYear, dataUpdatedAt, refetch } = useDrawData();
   const [selectedProgram, setSelectedProgram] = useState<ProgramType | 'all'>('all');
   const [analyticsMode, setAnalyticsMode] = useState<'crs' | 'itas'>('crs');
+  const [rangeLimit, setRangeLimit] = useState<string>('20');
   const { data: profilesData } = useQuery({
     queryKey: ['profiles'],
     queryFn: () => api<{ items: CRSProfile[] }>('/api/profiles'),
@@ -42,6 +44,11 @@ export function HomePage() {
     if (selectedProgram === 'all') return draws;
     return draws.filter(d => d.programType === selectedProgram);
   }, [draws, selectedProgram]);
+  const rangedDraws = useMemo(() => {
+    if (rangeLimit === 'all') return filteredDraws;
+    const limit = parseInt(rangeLimit, 10);
+    return filteredDraws.slice(0, limit);
+  }, [filteredDraws, rangeLimit]);
   const latestDraw = useMemo(() => filteredDraws[0] ?? null, [filteredDraws]);
   const previousDraw = useMemo(() => filteredDraws[1] ?? null, [filteredDraws]);
   const latestScore = latestDraw?.crsScore ?? 0;
@@ -186,31 +193,55 @@ export function HomePage() {
               <h2 className="text-xl font-bold tracking-tight">Deep Trend Analysis</h2>
               <p className="text-sm text-muted-foreground">Historical performance metrics visualization</p>
             </div>
-            <ToggleGroup 
-              type="single" 
-              value={analyticsMode} 
-              onValueChange={(v) => v && setAnalyticsMode(v as 'crs' | 'itas')}
-              className="bg-muted/50 p-1 rounded-xl border"
-            >
-              <ToggleGroupItem value="crs" className="rounded-lg px-4 gap-2 data-[state=on]:bg-white data-[state=on]:shadow-sm font-bold text-xs transition-all">
-                <LineChart className="size-3.5" /> CRS Score
-              </ToggleGroupItem>
-              <ToggleGroupItem value="itas" className="rounded-lg px-4 gap-2 data-[state=on]:bg-white data-[state=on]:shadow-sm font-bold text-xs transition-all">
-                <BarChart3 className="size-3.5" /> ITA Volume
-              </ToggleGroupItem>
-            </ToggleGroup>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+              <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-xl border">
+                <Filter className="size-3.5 text-muted-foreground" />
+                <Select value={rangeLimit} onValueChange={setRangeLimit}>
+                  <SelectTrigger className="h-8 w-[140px] border-none bg-transparent shadow-none font-bold text-xs focus:ring-0">
+                    <SelectValue placeholder="Range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">Last 10 Draws</SelectItem>
+                    <SelectItem value="20">Last 20 Draws</SelectItem>
+                    <SelectItem value="50">Last 50 Draws</SelectItem>
+                    <SelectItem value="all">Full History</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <ToggleGroup
+                type="single"
+                value={analyticsMode}
+                onValueChange={(v) => v && setAnalyticsMode(v as 'crs' | 'itas')}
+                className="bg-muted/50 p-1 rounded-xl border"
+              >
+                <ToggleGroupItem value="crs" className="rounded-lg px-4 gap-2 data-[state=on]:bg-white data-[state=on]:shadow-sm font-bold text-xs transition-all">
+                  <LineChart className="size-3.5" /> CRS Score
+                </ToggleGroupItem>
+                <ToggleGroupItem value="itas" className="rounded-lg px-4 gap-2 data-[state=on]:bg-white data-[state=on]:shadow-sm font-bold text-xs transition-all">
+                  <BarChart3 className="size-3.5" /> ITA Volume
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
           </div>
           <AnimatePresence mode="wait">
-            <motion.div 
-              key={analyticsMode}
+            <motion.div
+              key={`${analyticsMode}-${rangeLimit}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
               className="grid gap-6 grid-cols-1 lg:grid-cols-3"
             >
-              <ScoreTrendChart data={filteredDraws} isLoading={isLoading && draws.length === 0} mode={analyticsMode} />
-              <InvitationBarChart data={filteredDraws} isLoading={isLoading && draws.length === 0} mode={analyticsMode} />
+              <ScoreTrendChart 
+                data={rangedDraws} 
+                isLoading={isLoading && draws.length === 0} 
+                mode={analyticsMode} 
+              />
+              <InvitationBarChart 
+                data={rangedDraws} 
+                isLoading={isLoading && draws.length === 0} 
+                mode={analyticsMode} 
+              />
             </motion.div>
           </AnimatePresence>
         </div>
