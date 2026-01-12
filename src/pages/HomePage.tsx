@@ -52,13 +52,15 @@ export function HomePage() {
     const isInitialLoad = !isLoading && draws.length > 0 && selectedProgram === 'all';
     if ((syncJustFinished || isInitialLoad) && draws.length > 0) {
       const latestType = draws[0].programType;
-      // Only auto-switch if we aren't already on a specific filter or if a fresh sync happened
+      // Only auto-switch if we aren't already on a specific filter OR if a fresh sync happened
       if (selectedProgram === 'all' || syncJustFinished) {
-        setSelectedProgram(latestType);
+        if (selectedProgram !== latestType) {
+          setSelectedProgram(latestType);
+        }
       }
     }
     prevIsFetching.current = isFetching;
-  }, [draws, isFetching, isLoading]);
+  }, [draws, isFetching, isLoading, selectedProgram]);
   const filteredDraws = useMemo(() => {
     if (selectedProgram === 'all') return draws;
     return draws.filter(d => d.programType === selectedProgram);
@@ -89,7 +91,7 @@ export function HomePage() {
   }, [filteredDraws, currentYear]);
   const latestProfile = useMemo(() => {
     if (!profilesData?.items || profilesData.items.length === 0) return null;
-    return [...profilesData.items].sort((a, b) =>
+    return [...profilesData.items].sort((a, b) => 
       parseISO(b.date).getTime() - parseISO(a.date).getTime()
     )[0];
   }, [profilesData]);
@@ -134,9 +136,9 @@ export function HomePage() {
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-3xl font-bold tracking-tight text-foreground">Executive Dashboard</h1>
               <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
                   onClick={() => refetch()}
                   disabled={isFetching}
                   className="h-9 w-9 rounded-full hover:bg-muted transition-all active:scale-90"
@@ -186,10 +188,10 @@ export function HomePage() {
           </div>
         </div>
         <motion.div layout className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-          <StatCard
-            title="Latest Cutoff"
-            value={latestScore || "---"}
-            icon={Trophy}
+          <StatCard 
+            title="Latest Cutoff" 
+            value={latestScore || "---"} 
+            icon={Trophy} 
             description={latestDraw?.programType ? `${latestDraw.programType} Round` : "No draw found"}
             trend={crsDiff !== 0 ? {
               value: Math.abs(crsDiff),
@@ -197,10 +199,10 @@ export function HomePage() {
               iconDirection: crsDiff < 0 ? 'down' : 'up'
             } : undefined}
           />
-          <StatCard
-            title={`ITAs (${currentYear})`}
-            value={totalItasYearToDate.toLocaleString()}
-            icon={Users}
+          <StatCard 
+            title={`ITAs (${currentYear})`} 
+            value={totalItasYearToDate.toLocaleString()} 
+            icon={Users} 
             description={selectedProgram === 'all' ? 'Total Issued' : `${selectedProgram} Rounds`}
           />
           <div className="sm:col-span-2 md:col-span-1 lg:col-span-1">
@@ -209,10 +211,10 @@ export function HomePage() {
           {profilesLoading ? (
             <Skeleton className="h-full min-h-[160px] rounded-xl" />
           ) : (
-            <StatCard
-              title="Personal Status"
-              value={userScore !== null ? userScore : "N/A"}
-              icon={userScore !== null ? UserCheck : Zap}
+            <StatCard 
+              title="Personal Status" 
+              value={userScore !== null ? userScore : "N/A"} 
+              icon={userScore !== null ? UserCheck : Zap} 
               description={userScore !== null ? `Vs ${benchmarkLabel}` : "No Score Set"}
               trend={personalGap !== null ? {
                 value: Math.abs(personalGap),
@@ -224,10 +226,10 @@ export function HomePage() {
               className={cn(userScore === null && "border-dashed border-muted-foreground/30")}
             />
           )}
-          <StatCard
-            title="Last Draw"
-            value={lastDate}
-            icon={Calendar}
+          <StatCard 
+            title="Last Draw" 
+            value={lastDate} 
+            icon={Calendar} 
             description={selectedProgram === 'all' ? "Across IRCC" : `${selectedProgram} Segment`}
           />
         </motion.div>
@@ -257,20 +259,20 @@ export function HomePage() {
                   </SelectContent>
                 </Select>
               </div>
-              <ToggleGroup
-                type="single"
-                value={analyticsMode}
+              <ToggleGroup 
+                type="single" 
+                value={analyticsMode} 
                 onValueChange={(v) => v && setAnalyticsMode(v as 'crs' | 'itas')}
                 className="bg-background/60 backdrop-blur-md p-1 rounded-xl border border-border shadow-sm"
               >
-                <ToggleGroupItem
-                  value="crs"
+                <ToggleGroupItem 
+                  value="crs" 
                   className="rounded-lg px-4 gap-2 data-[state=on]:bg-card data-[state=on]:text-primary data-[state=on]:shadow-sm font-bold text-xs"
                 >
                   <LineChart className="size-3.5" /> CRS
                 </ToggleGroupItem>
-                <ToggleGroupItem
-                  value="itas"
+                <ToggleGroupItem 
+                  value="itas" 
                   className="rounded-lg px-4 gap-2 data-[state=on]:bg-card data-[state=on]:text-primary data-[state=on]:shadow-sm font-bold text-xs"
                 >
                   <BarChart3 className="size-3.5" /> ITAs
@@ -279,7 +281,7 @@ export function HomePage() {
             </div>
           </div>
           <AnimatePresence mode="wait">
-            <motion.div
+            <motion.div 
               key={`${analyticsMode}-${rangeLimit}-${selectedProgram}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -287,15 +289,15 @@ export function HomePage() {
               transition={{ duration: 0.3 }}
               className="grid gap-6 grid-cols-1 lg:grid-cols-3"
             >
-              <ScoreTrendChart
-                data={rangedDraws}
-                isLoading={isLoading && draws.length === 0}
-                mode={analyticsMode}
+              <ScoreTrendChart 
+                data={rangedDraws} 
+                isLoading={isLoading && draws.length === 0} 
+                mode={analyticsMode} 
               />
-              <InvitationBarChart
-                data={rangedDraws}
-                isLoading={isLoading && draws.length === 0}
-                mode={analyticsMode}
+              <InvitationBarChart 
+                data={rangedDraws} 
+                isLoading={isLoading && draws.length === 0} 
+                mode={analyticsMode} 
               />
             </motion.div>
           </AnimatePresence>

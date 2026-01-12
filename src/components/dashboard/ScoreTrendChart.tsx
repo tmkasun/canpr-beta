@@ -56,8 +56,8 @@ export function ScoreTrendChart({ data, isLoading, mode = 'crs' }: ScoreTrendCha
           {isLargeSet && <Badge variant="secondary" className="text-[10px] font-black uppercase tracking-widest bg-primary/5 text-primary">Historical View</Badge>}
         </CardTitle>
         <CardDescription className="text-xs font-medium text-muted-foreground">
-          {isCrs
-            ? "Visualizing minimum scores over the selected window"
+          {isCrs 
+            ? "Visualizing minimum scores over the selected window" 
             : "Invitation totals per round based on current filters"}
         </CardDescription>
       </CardHeader>
@@ -71,16 +71,16 @@ export function ScoreTrendChart({ data, isLoading, mode = 'crs' }: ScoreTrendCha
                   <stop offset="95%" stopColor="#D80621" stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis
-                dataKey="formattedDate"
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
+              <XAxis 
+                dataKey="formattedDate" 
                 tick={{ fontSize: 10, fontWeight: 700, fill: "hsl(var(--muted-foreground))" }}
                 axisLine={false}
                 tickLine={false}
                 dy={10}
                 interval={isMobile ? (sortedData.length > 10 ? 4 : 2) : (isLargeSet ? "preserveStartEnd" : 0)}
               />
-              <YAxis
+              <YAxis 
                 domain={isCrs ? ['auto', 'auto'] : [0, 'auto']}
                 tick={{ fontSize: 10, fontWeight: 700, fill: "hsl(var(--muted-foreground))" }}
                 axisLine={false}
@@ -88,14 +88,14 @@ export function ScoreTrendChart({ data, isLoading, mode = 'crs' }: ScoreTrendCha
                 tickFormatter={(val) => val.toLocaleString()}
                 width={40}
               />
-              <Tooltip
+              <Tooltip 
                 formatter={(value: number, name: string, props: any) => [
-                  `${value.toLocaleString()} ${unit}`,
+                  `${value.toLocaleString()} ${unit}`, 
                   `${label} (${props.payload.programType})`
                 ]}
                 labelFormatter={(label, items) => items[0]?.payload?.fullDate || label}
-                contentStyle={{
-                  borderRadius: '16px',
+                contentStyle={{ 
+                  borderRadius: '16px', 
                   border: '1px solid hsl(var(--border))',
                   backgroundColor: 'hsl(var(--card))',
                   boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
@@ -107,25 +107,25 @@ export function ScoreTrendChart({ data, isLoading, mode = 'crs' }: ScoreTrendCha
                 labelStyle={{ color: 'hsl(var(--foreground))', marginBottom: '4px' }}
                 itemStyle={{ padding: '2px 0' }}
               />
-              <Area
-                type="monotone"
-                dataKey={dataKey}
-                stroke="#D80621"
+              <Area 
+                type="monotone" 
+                dataKey={dataKey} 
+                stroke="#D80621" 
                 strokeWidth={3}
-                fillOpacity={1}
-                fill="url(#scoreGradient)"
+                fillOpacity={1} 
+                fill="url(#scoreGradient)" 
                 name={label}
                 activeDot={{ r: 6, strokeWidth: 0, fill: "#D80621" }}
                 animationDuration={1500}
               />
               {!isMobile && (
-                <Brush
-                  dataKey="formattedDate"
-                  height={25}
+                <Brush 
+                  dataKey="formattedDate" 
+                  height={25} 
                   stroke="hsl(var(--primary))"
                   fill="hsl(var(--muted))"
-                  className="text-[10px]"
-                  travellerWidth={8}
+                  gap={10}
+                  travellerWidth={10}
                   startIndex={Math.max(0, sortedData.length - 20)}
                 >
                   <AreaChart>

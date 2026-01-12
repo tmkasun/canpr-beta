@@ -44,18 +44,22 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
     }
     const normalized: DrawEntry[] = json.rounds.reduce((acc: DrawEntry[], r, idx) => {
       try {
-        if (!r.drawNumber || !r.drawDate) return acc;
+        // Safe check for required fields: at least date or name should exist
+        if (!r.drawDate && !r.drawName) return acc;
         const cleanName = stripHtml(r.drawName || "Express Entry Round");
-        // Robust date parsing for varying IRCC formats
+        const drawNum = safeParseInt(r.drawNumber, idx + 1000); // Fallback for missing draw number
+        // Robust date cleaning: remove non-breaking spaces, zero-width chars, and timezone offsets
         const rawDate = r.drawDate
           .trim()
-          .replace(/[\u200B-\u200D\uFEFF]/g, '')
-          .replace(/\s+(EST|EDT|UTC|PST|PDT).*$/, "");
+          .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .replace(/\s+(EST|EDT|UTC|PST|PDT|GMT).*$/, "");
         let dateIso = "";
         const parsedIso = parseISO(rawDate);
         if (isValid(parsedIso)) {
           dateIso = format(parsedIso, "yyyy-MM-dd");
         } else {
+          // Fallback parsing for common IRCC text formats
           const formats = ["MMMM d, yyyy", "MMM d, yyyy", "yyyy-MM-dd", "dd/MM/yyyy", "d MMMM yyyy"];
           for (const fmt of formats) {
             try {
@@ -69,10 +73,11 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
         }
         if (!dateIso) return acc;
         const crsValue = safeParseInt(r.drawCRS);
-        if (crsValue <= 0 || crsValue > 1200) return acc;
+        // Minimum sanity check for CRS scores
+        if (crsValue < 0 || crsValue > 1200) return acc;
         const entry: DrawEntry = {
-          id: `ircc-${safeParseInt(r.drawNumber, idx)}-idx-${idx}`,
-          drawNumber: safeParseInt(r.drawNumber),
+          id: `ircc-${drawNum}-idx-${idx}`,
+          drawNumber: drawNum,
           date: dateIso,
           programType: determineProgramType(cleanName),
           itasIssued: safeParseInt(r.drawSize),
@@ -85,7 +90,7 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
       }
       return acc;
     }, []);
-    const sorted = [...normalized].sort((a, b) =>
+    const sorted = [...normalized].sort((a, b) => 
       parseISO(b.date).getTime() - parseISO(a.date).getTime()
     );
     if (sorted.length > 0) {
@@ -104,7 +109,7 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
         const parsed = JSON.parse(cached);
         if (parsed?.data && Array.isArray(parsed.data)) {
           const ageMinutes = Math.round((Date.now() - (parsed.timestamp || 0)) / 60000);
-          console.info(`[DATA SERVICE] Cache hit successful. Data age: ${ageMinutes}m.`);
+          console.info(`[DATA SERVICE] Cache hit successful. Restored ${parsed.data.length} records. Data age: ${ageMinutes}m.`);
           return parsed.data;
         }
       } catch { /* ignored */ }
