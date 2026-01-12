@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Users,
   Calendar,
@@ -9,7 +9,7 @@ import {
   Clock,
   UserCheck
 } from 'lucide-react';
-import { format, parseISO, differenceInDays, formatDistanceToNow, isValid } from 'date-fns';
+import { format, parseISO, differenceInDays, formatDistanceToNow, isValid, startOfYear, isAfter } from 'date-fns';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { ScoreTrendChart } from '@/components/dashboard/ScoreTrendChart';
@@ -18,41 +18,64 @@ import { useDrawData } from '@/hooks/use-draw-data';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
-import { CRSProfile } from '@shared/types';
+import { CRSProfile, ProgramType } from '@shared/types';
 export function HomePage() {
-  const { draws, latestDraw, previousDraw, totalItasYearToDate, averageCrsAllTime, isLoading, isFetching, currentYear, dataUpdatedAt } = useDrawData();
+  const { draws, isLoading, isFetching, currentYear, dataUpdatedAt } = useDrawData();
+  const [selectedProgram, setSelectedProgram] = useState<ProgramType | 'all'>('all');
   const { data: profilesData } = useQuery({
     queryKey: ['profiles'],
     queryFn: () => api<{ items: CRSProfile[] }>('/api/profiles'),
-    staleTime: 1000 * 60 * 5, // Sync cache with draws
+    staleTime: 1000 * 60 * 5,
   });
+  // Filtered data based on program selection
+  const filteredDraws = useMemo(() => {
+    if (selectedProgram === 'all') return draws;
+    return draws.filter(d => d.programType === selectedProgram);
+  }, [draws, selectedProgram]);
+  // Reactive Stats Derivation
+  const latestDraw = useMemo(() => filteredDraws[0] ?? null, [filteredDraws]);
+  const previousDraw = useMemo(() => filteredDraws[1] ?? null, [filteredDraws]);
+  const latestScore = latestDraw?.crsScore ?? 0;
+  const prevScore = previousDraw?.crsScore ?? 0;
+  const crsDiff = latestScore > 0 && prevScore > 0 ? latestScore - prevScore : 0;
+  const isUpTrend = crsDiff < 0; // Lower is better in CRS cutoffs
+  const totalItasYearToDate = useMemo(() => {
+    const yearStart = startOfYear(new Date(currentYear, 0, 1));
+    return filteredDraws
+      .filter(d => {
+        const dDate = parseISO(d.date);
+        return isValid(dDate) && isAfter(dDate, yearStart);
+      })
+      .reduce((acc, d) => acc + (Number(d.itasIssued) || 0), 0);
+  }, [filteredDraws, currentYear]);
   const latestProfile = useMemo(() => {
     if (!profilesData?.items || profilesData.items.length === 0) return null;
     return [...profilesData.items].sort((a, b) =>
       parseISO(b.date).getTime() - parseISO(a.date).getTime()
     )[0];
   }, [profilesData]);
-  const latestScore = latestDraw?.crsScore ?? 0;
-  const prevScore = previousDraw?.crsScore ?? 0;
   const isNewDraw = useMemo(() => {
     if (!latestDraw?.date) return false;
     const d = parseISO(latestDraw.date);
-    return isValid(d) && differenceInDays(new Date(), d) <= 7;
+    return isValid(d) && differenceInDays(new Date(), d) <= 14; // Slightly wider window for program-specific
   }, [latestDraw]);
   const lastDate = useMemo(() => {
     if (!latestDraw?.date) return '---';
     const d = parseISO(latestDraw.date);
     return isValid(d) ? format(d, 'MMM d, yyyy') : '---';
   }, [latestDraw]);
-  const crsDiff = latestScore > 0 && prevScore > 0 ? latestScore - prevScore : 0;
-  const isUpTrend = crsDiff < 0; // In CRS, a lower score is often a "positive" trend for candidates
-  // Personal score calculations
-  const userScore = latestProfile?.score ?? averageCrsAllTime;
-  const scoreLabel = latestProfile ? "Your Saved Score" : "Historical Average";
+  const averageCrsFiltered = useMemo(() => {
+    if (filteredDraws.length === 0) return 0;
+    const sum = filteredDraws.reduce((acc, d) => acc + (Number(d.crsScore) || 0), 0);
+    return Math.round(sum / filteredDraws.length);
+  }, [filteredDraws]);
+  const userScore = latestProfile?.score ?? averageCrsFiltered;
+  const scoreLabel = latestProfile ? "Your Saved Score" : "Filtered Average";
   const personalGap = latestScore > 0 ? userScore - latestScore : null;
   const isQualified = personalGap !== null && personalGap >= 0;
   if (isLoading && draws.length === 0) {
@@ -68,10 +91,6 @@ export function HomePage() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-32 rounded-xl" />)}
-          </div>
-          <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-            <Skeleton className="lg:col-span-2 h-[400px] rounded-xl" />
-            <Skeleton className="h-[400px] rounded-xl" />
           </div>
         </div>
       </AppLayout>
@@ -96,7 +115,7 @@ export function HomePage() {
               </AnimatePresence>
               {isNewDraw && (
                 <Badge className="bg-emerald-500 text-white border-none shadow-sm h-6 px-3">
-                  <Bell className="w-3 h-3 mr-1.5" /> Recent Draw
+                  <Bell className="w-3 h-3 mr-1.5" /> Recent Round
                 </Badge>
               )}
             </div>
@@ -105,30 +124,52 @@ export function HomePage() {
               {dataUpdatedAt && (
                 <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 tabular-nums bg-muted/50 px-2 py-0.5 rounded-md border">
                   <Clock className="size-3" />
-                  Last synced {formatDistanceToNow(new Date(dataUpdatedAt), { addSuffix: true })}
+                  Synced {formatDistanceToNow(new Date(dataUpdatedAt), { addSuffix: true })}
                 </div>
               )}
             </div>
           </div>
-          <Link to="/calculator" className="w-full md:w-auto">
-            <Button size="lg" className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground shadow-xl shadow-primary/20 px-8 font-bold rounded-xl h-12">
-              Calculate Your Score
-            </Button>
-          </Link>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="relative">
+              <Select value={selectedProgram} onValueChange={(v) => setSelectedProgram(v as ProgramType | 'all')}>
+                <SelectTrigger className="w-full sm:w-[180px] h-12 rounded-xl border-muted bg-card shadow-sm font-bold">
+                  <SelectValue placeholder="All Programs" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Rounds</SelectItem>
+                  <SelectItem value="General">General</SelectItem>
+                  <SelectItem value="CEC">CEC (Exp. Class)</SelectItem>
+                  <SelectItem value="PNP">PNP (Provincial)</SelectItem>
+                  <SelectItem value="Category-based">Category-based</SelectItem>
+                  <SelectItem value="FSW">FSW (Skilled)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Link to="/calculator" className="w-full">
+              <Button size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-xl shadow-primary/20 px-8 font-bold rounded-xl h-12">
+                Calculate Your Score
+              </Button>
+            </Link>
+          </div>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <motion.div 
+          key={selectedProgram}
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+        >
           <StatCard
             title="Latest Cutoff"
             value={latestScore || "---"}
             icon={Trophy}
-            description={latestDraw?.programType ? `Type: ${latestDraw.programType}` : "Round specific"}
+            description={latestDraw?.programType ? `${latestDraw.programType} Round` : "Round specific"}
             trend={latestScore > 0 && prevScore > 0 ? { value: Math.abs(crsDiff), isUp: isUpTrend } : undefined}
           />
           <StatCard
             title={`ITAs (${currentYear})`}
             value={totalItasYearToDate.toLocaleString()}
             icon={Users}
-            description="Total candidates invited YTD"
+            description={`Filtered ${selectedProgram === 'all' ? 'Total' : selectedProgram}`}
           />
           <StatCard
             title="Your Status"
@@ -140,31 +181,37 @@ export function HomePage() {
             linkText="Update Profile"
           />
           <StatCard
-            title="Next Draw"
+            title="Most Recent"
             value={lastDate}
             icon={Calendar}
-            description="Anticipated Window"
+            description={selectedProgram === 'all' ? "Across all streams" : `${selectedProgram} specific`}
           />
-        </div>
+        </motion.div>
         <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-          <ScoreTrendChart data={draws} isLoading={isLoading && draws.length === 0} />
-          <InvitationBarChart data={draws} isLoading={isLoading && draws.length === 0} />
+          <ScoreTrendChart data={filteredDraws} isLoading={isLoading && draws.length === 0} />
+          <InvitationBarChart data={filteredDraws} isLoading={isLoading && draws.length === 0} />
         </div>
         <div className="rounded-2xl border bg-card shadow-lg p-6 lg:p-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
             <div className="space-y-1">
-              <h2 className="text-xl font-bold text-foreground">Recent IRCC Activity</h2>
-              <p className="text-sm text-muted-foreground">Detailed logs of the latest Express Entry rounds</p>
+              <h2 className="text-xl font-bold text-foreground">Recent Activity: {selectedProgram === 'all' ? 'All' : selectedProgram}</h2>
+              <p className="text-sm text-muted-foreground">Historical logs matching your current filter</p>
             </div>
             <Link to="/history" className="w-full sm:w-auto">
               <Button variant="outline" className="w-full sm:w-auto text-primary hover:text-primary border-primary/20 hover:bg-primary/5 font-bold group rounded-xl">
-                View All Draws <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                View History <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Button>
             </Link>
           </div>
           <div className="space-y-4">
-            {draws.slice(0, 5).map((draw) => (
-              <div key={draw.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 rounded-xl bg-muted/30 border border-transparent hover:border-primary/20 hover:bg-primary/[0.02] group transition-all duration-300">
+            {filteredDraws.slice(0, 5).map((draw) => (
+              <motion.div 
+                layout
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                key={draw.id} 
+                className="flex flex-col sm:flex-row sm:items-center justify-between p-5 rounded-xl bg-muted/30 border border-transparent hover:border-primary/20 hover:bg-primary/[0.02] group transition-all duration-300"
+              >
                 <div className="flex items-center gap-5 truncate">
                   <div className="h-12 w-12 shrink-0 rounded-xl bg-background flex items-center justify-center border-2 border-primary/10 font-black text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300 shadow-sm">
                     {draw.drawNumber}
@@ -188,8 +235,13 @@ export function HomePage() {
                     </Badge>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))}
+            {filteredDraws.length === 0 && (
+              <div className="py-12 text-center text-muted-foreground italic">
+                No recent draws found for this specific program type.
+              </div>
+            )}
           </div>
         </div>
       </motion.div>

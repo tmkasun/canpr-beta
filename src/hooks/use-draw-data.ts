@@ -47,6 +47,7 @@ export function useDrawData() {
     previousDraw,
     totalItasYearToDate,
     currentYear,
+    yearStart,
     averageCrsAllTime,
     isInitialLoading: query.isLoading && !query.isFetching,
     dataUpdatedAt: query.dataUpdatedAt,

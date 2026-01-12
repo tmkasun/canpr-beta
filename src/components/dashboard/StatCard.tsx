@@ -2,7 +2,7 @@ import React from "react";
 import { LucideIcon, TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 interface StatCardProps {
   title: string;
@@ -46,12 +46,23 @@ export function StatCard({
           </div>
         </CardHeader>
         <CardContent className="flex-1">
-          <div className="text-3xl font-black tracking-tight text-foreground tabular-nums">
-            {value}
+          <div className="overflow-hidden">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={value}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="text-3xl font-black tracking-tight text-foreground tabular-nums"
+              >
+                {value}
+              </motion.div>
+            </AnimatePresence>
           </div>
-          {(description || trend) && (
-            <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-              {trend && (
+          {(description || (trend && trend.value !== 0)) && (
+            <div className="mt-2 flex items-center gap-1.5 flex-wrap min-h-[22px]">
+              {trend && trend.value !== 0 && (
                 <span className={cn(
                   "flex items-center text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter",
                   trend.isUp
@@ -72,8 +83,8 @@ export function StatCard({
         </CardContent>
         {link && (
           <CardFooter className="px-6 py-3 border-t border-dashed bg-muted/5 group-hover:bg-muted/10 transition-colors">
-            <Link 
-              to={link} 
+            <Link
+              to={link}
               className="flex items-center justify-between w-full text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-red-600 transition-colors group/link"
             >
               <span>{linkText || "View Details"}</span>
