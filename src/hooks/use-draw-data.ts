@@ -22,13 +22,13 @@ export function useDrawData() {
   const latestDraw = useMemo(() => draws[0] ?? null, [draws]);
   const previousDraw = useMemo(() => draws[1] ?? null, [draws]);
   const currentYear = useMemo(() => new Date().getFullYear(), []);
+  const yearStart = useMemo(() => startOfYear(new Date(currentYear, 0, 1)), [currentYear]);
   const averageCrsAllTime = useMemo(() => {
     if (draws.length === 0) return 0;
-    const sum = draws.reduce((acc, d) => acc + d.crsScore, 0);
+    const sum = draws.reduce((acc, d) => acc + (Number(d.crsScore) || 0), 0);
     return Math.round(sum / draws.length);
   }, [draws]);
   const totalItasYearToDate = useMemo(() => {
-    const yearStart = startOfYear(new Date());
     return draws
       .filter(d => {
         try {
@@ -38,8 +38,8 @@ export function useDrawData() {
           return false;
         }
       })
-      .reduce((acc, d) => acc + d.itasIssued, 0);
-  }, [draws]);
+      .reduce((acc, d) => acc + (Number(d.itasIssued) || 0), 0);
+  }, [draws, yearStart]);
   return {
     ...query,
     draws,

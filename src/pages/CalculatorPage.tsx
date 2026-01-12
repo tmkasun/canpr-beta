@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Calculator, Info, CheckCircle2, Save, Trash2, History, ArrowRight, Sparkles, Loader2, Lightbulb, AlertTriangle, PenLine, Settings2 } from 'lucide-react';
+import { Calculator, Info, CheckCircle2, Save, Trash2, History, ArrowRight, Sparkles, Loader2, PenLine, Settings2, AlertTriangle } from 'lucide-react';
 import { useDrawData } from '@/hooks/use-draw-data';
 import { api } from '@/lib/api-client';
 import { CRSProfile } from '@shared/types';
@@ -17,7 +17,9 @@ import { format, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 export function CalculatorPage() {
+  const queryClient = useQueryClient();
   const { latestDraw, isLoading: drawsLoading } = useDrawData();
   const [isManualMode, setIsManualMode] = useState(false);
   const [manualScore, setManualScore] = useState<string>("500");
@@ -26,10 +28,34 @@ export function CalculatorPage() {
   const [lang, setLang] = useState<string>("high");
   const [exp, setExp] = useState<string>("3");
   const [label, setLabel] = useState<string>("Current Profile");
-  const [isSaving, setIsSaving] = useState(false);
-  const [savedProfiles, setSavedProfiles] = useState<CRSProfile[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const latestCutoff = latestDraw?.crsScore ?? 500;
+  // TanStack Query for Profiles
+  const { data: profilesData, isLoading: profilesLoading } = useQuery({
+    queryKey: ['profiles'],
+    queryFn: () => api<{ items: CRSProfile[] }>('/api/profiles'),
+  });
+  const savedProfiles = useMemo(() => {
+    return (profilesData?.items || []).sort((a, b) => 
+      parseISO(b.date).getTime() - parseISO(a.date).getTime()
+    );
+  }, [profilesData]);
+  // Mutations
+  const saveMutation = useMutation({
+    mutationFn: (newProfile: CRSProfile) => api('/api/profiles', { method: 'POST', body: JSON.stringify(newProfile) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      toast.success("Estimate saved successfully");
+    },
+    onError: () => toast.error("Failed to save estimate"),
+  });
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api(`/api/profiles/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      toast.success("Estimate removed");
+    },
+    onError: () => toast.error("Failed to delete"),
+  });
   const score = useMemo(() => {
     if (isManualMode) return parseInt(manualScore) || 0;
     let total = 0;
@@ -50,49 +76,18 @@ export function CalculatorPage() {
   }, [age, edu, lang, exp, isManualMode, manualScore]);
   const qualifies = score >= latestCutoff;
   const gap = latestCutoff - score;
-  useEffect(() => {
-    fetchProfiles();
-  }, []);
-  const fetchProfiles = async () => {
-    try {
-      const res = await api<{ items: CRSProfile[] }>('/api/profiles');
-      setSavedProfiles((res.items || []).sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      const newProfile: CRSProfile = {
-        id: crypto.randomUUID(),
-        label: label.trim() || (isManualMode ? "Manual Score" : "My Estimate"),
-        score,
-        age: isManualMode ? "N/A" : age,
-        education: isManualMode ? "Manual" : edu,
-        language: isManualMode ? "Manual" : lang,
-        experience: isManualMode ? "Manual" : exp,
-        date: new Date().toISOString()
-      };
-      await api('/api/profiles', { method: 'POST', body: JSON.stringify(newProfile) });
-      toast.success("Estimate saved successfully");
-      fetchProfiles();
-    } catch (e) {
-      toast.error("Failed to save estimate");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-  const handleDelete = async (id: string) => {
-    try {
-      await api(`/api/profiles/${id}`, { method: 'DELETE' });
-      setSavedProfiles(prev => prev.filter(p => p.id !== id));
-      toast.success("Estimate removed");
-    } catch (e) {
-      toast.error("Failed to delete");
-    }
+  const handleSave = () => {
+    const newProfile: CRSProfile = {
+      id: crypto.randomUUID(),
+      label: label.trim() || (isManualMode ? "Manual Score" : "My Estimate"),
+      score,
+      age: isManualMode ? "N/A" : age,
+      education: isManualMode ? "Manual" : edu,
+      language: isManualMode ? "Manual" : lang,
+      experience: isManualMode ? "Manual" : exp,
+      date: new Date().toISOString()
+    };
+    saveMutation.mutate(newProfile);
   };
   const loadProfile = (p: CRSProfile) => {
     if (p.education === "Manual") {
@@ -117,17 +112,17 @@ export function CalculatorPage() {
             <p className="text-muted-foreground">Detailed Comprehensive Ranking System simulation based on latest IRCC trends.</p>
           </div>
           <div className="flex p-1 bg-muted rounded-xl">
-             <Button 
-               variant={!isManualMode ? "secondary" : "ghost"} 
-               size="sm" 
+             <Button
+               variant={!isManualMode ? "secondary" : "ghost"}
+               size="sm"
                className="rounded-lg font-bold text-xs"
                onClick={() => setIsManualMode(false)}
              >
                <Settings2 className="mr-2 h-3.5 w-3.5" /> Wizard
              </Button>
-             <Button 
-               variant={isManualMode ? "secondary" : "ghost"} 
-               size="sm" 
+             <Button
+               variant={isManualMode ? "secondary" : "ghost"}
+               size="sm"
                className="rounded-lg font-bold text-xs"
                onClick={() => setIsManualMode(true)}
              >
@@ -156,14 +151,14 @@ export function CalculatorPage() {
                   {isManualMode && (
                     <div className="space-y-2">
                       <Label htmlFor="manualScore" className="text-xs font-bold uppercase tracking-wider opacity-70">Manual CRS Points</Label>
-                      <Input 
-                        id="manualScore" 
-                        type="number" 
-                        value={manualScore} 
-                        onChange={(e) => setManualScore(e.target.value)} 
-                        min="0" 
+                      <Input
+                        id="manualScore"
+                        type="number"
+                        value={manualScore}
+                        onChange={(e) => setManualScore(e.target.value)}
+                        min="0"
                         max="1200"
-                        className="font-bold text-lg text-red-600 h-11" 
+                        className="font-bold text-lg text-red-600 h-11"
                       />
                     </div>
                   )}
@@ -175,8 +170,8 @@ export function CalculatorPage() {
                   )}
                 </div>
                 {!isManualMode && (
-                  <motion.div 
-                    initial={{ opacity: 0, height: 0 }} 
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     className="space-y-6 overflow-hidden"
                   >
@@ -245,11 +240,11 @@ export function CalculatorPage() {
                 )}
                 <Button
                   onClick={handleSave}
-                  disabled={isSaving}
+                  disabled={saveMutation.isPending}
                   className="w-full bg-red-600 hover:bg-red-700 text-white gap-2 h-11 shadow-lg shadow-red-600/20"
                 >
-                  {isSaving ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />}
-                  {isSaving ? "Saving..." : "Save Benchmark Profile"}
+                  {saveMutation.isPending ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />}
+                  {saveMutation.isPending ? "Saving..." : "Save Benchmark Profile"}
                 </Button>
               </CardContent>
             </Card>
@@ -262,7 +257,7 @@ export function CalculatorPage() {
               </CardHeader>
               <ScrollArea className="flex-1">
                 <div className="divide-y">
-                  {isLoading ? (
+                  {profilesLoading ? (
                     Array(3).fill(0).map((_, i) => (
                       <div key={i} className="p-4 space-y-2">
                         <Skeleton className="h-4 w-[150px]" />
@@ -298,7 +293,8 @@ export function CalculatorPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
+                              onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(p.id); }}
+                              disabled={deleteMutation.isPending}
                               className="h-8 w-8 text-muted-foreground hover:text-rose-600 hover:bg-rose-50"
                             >
                               <Trash2 className="h-4 w-4" />

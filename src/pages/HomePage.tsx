@@ -3,7 +3,6 @@ import {
   Users,
   Calendar,
   Trophy,
-  Activity,
   ArrowRight,
   Bell,
   RefreshCcw,
@@ -24,34 +23,38 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { CRSProfile } from '@shared/types';
-import { cn } from '@/lib/utils';
 export function HomePage() {
   const { draws, latestDraw, previousDraw, totalItasYearToDate, averageCrsAllTime, isLoading, isFetching, currentYear, dataUpdatedAt } = useDrawData();
   const { data: profilesData } = useQuery({
     queryKey: ['profiles'],
     queryFn: () => api<{ items: CRSProfile[] }>('/api/profiles'),
+    staleTime: 1000 * 60 * 5, // Sync cache with draws
   });
   const latestProfile = useMemo(() => {
     if (!profilesData?.items || profilesData.items.length === 0) return null;
-    return [...profilesData.items].sort((a, b) => 
+    return [...profilesData.items].sort((a, b) =>
       parseISO(b.date).getTime() - parseISO(a.date).getTime()
     )[0];
   }, [profilesData]);
   const latestScore = latestDraw?.crsScore ?? 0;
   const prevScore = previousDraw?.crsScore ?? 0;
-  const isNewDraw = latestDraw && isValid(parseISO(latestDraw.date))
-    ? differenceInDays(new Date(), parseISO(latestDraw.date)) <= 7
-    : false;
-  const lastDate = latestDraw && isValid(parseISO(latestDraw.date))
-    ? format(parseISO(latestDraw.date), 'MMM d, yyyy')
-    : '---';
-  const crsDiff = latestScore - prevScore;
-  const isUpTrend = crsDiff < 0;
+  const isNewDraw = useMemo(() => {
+    if (!latestDraw?.date) return false;
+    const d = parseISO(latestDraw.date);
+    return isValid(d) && differenceInDays(new Date(), d) <= 7;
+  }, [latestDraw]);
+  const lastDate = useMemo(() => {
+    if (!latestDraw?.date) return '---';
+    const d = parseISO(latestDraw.date);
+    return isValid(d) ? format(d, 'MMM d, yyyy') : '---';
+  }, [latestDraw]);
+  const crsDiff = latestScore > 0 && prevScore > 0 ? latestScore - prevScore : 0;
+  const isUpTrend = crsDiff < 0; // In CRS, a lower score is often a "positive" trend for candidates
   // Personal score calculations
   const userScore = latestProfile?.score ?? averageCrsAllTime;
   const scoreLabel = latestProfile ? "Your Saved Score" : "Historical Average";
-  const personalGap = userScore - latestScore;
-  const isQualified = personalGap >= 0;
+  const personalGap = latestScore > 0 ? userScore - latestScore : null;
+  const isQualified = personalGap !== null && personalGap >= 0;
   if (isLoading && draws.length === 0) {
     return (
       <AppLayout container>
@@ -127,20 +130,20 @@ export function HomePage() {
             icon={Users}
             description="Total candidates invited YTD"
           />
-          <StatCard 
-            title="Your Status" 
-            value={userScore} 
-            icon={UserCheck} 
+          <StatCard
+            title="Your Status"
+            value={userScore}
+            icon={UserCheck}
             description={scoreLabel}
-            trend={latestScore > 0 ? { value: Math.abs(personalGap), isUp: isQualified } : undefined}
+            trend={personalGap !== null && latestScore > 0 ? { value: Math.abs(personalGap), isUp: isQualified } : undefined}
             link="/calculator"
             linkText="Update Profile"
           />
-          <StatCard 
-            title="Next Draw" 
-            value={lastDate} 
-            icon={Calendar} 
-            description="Anticipated Window" 
+          <StatCard
+            title="Next Draw"
+            value={lastDate}
+            icon={Calendar}
+            description="Anticipated Window"
           />
         </div>
         <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
