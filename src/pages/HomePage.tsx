@@ -70,7 +70,7 @@ export function HomePage() {
   }, [filteredDraws, currentYear]);
   const latestProfile = useMemo(() => {
     if (!profilesData?.items || profilesData.items.length === 0) return null;
-    return [...profilesData.items].sort((a, b) =>
+    return [...profilesData.items].sort((a, b) => 
       parseISO(b.date).getTime() - parseISO(a.date).getTime()
     )[0];
   }, [profilesData]);
@@ -111,10 +111,10 @@ export function HomePage() {
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-3xl font-bold tracking-tight text-foreground">Executive Dashboard</h1>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => refetch()}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => refetch()} 
                 disabled={isFetching}
                 className="h-8 w-8 rounded-full hover:bg-muted"
                 title="Refresh Live Data"
@@ -128,7 +128,7 @@ export function HomePage() {
               )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-muted-foreground text-sm font-medium">IRCC Intelligence Terminal �� {currentYear}</p>
+              <p className="text-muted-foreground text-sm font-medium">IRCC Intelligence Terminal • {currentYear}</p>
               {dataUpdatedAt && (
                 <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 tabular-nums bg-muted/50 px-2 py-0.5 rounded-md border">
                   <Clock className="size-3" />
@@ -159,23 +159,23 @@ export function HomePage() {
           </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <StatCard
-            title="Latest Cutoff"
-            value={latestScore || "---"}
-            icon={Trophy}
+          <StatCard 
+            title="Latest Cutoff" 
+            value={latestScore || "---"} 
+            icon={Trophy} 
             description={latestDraw?.programType ? `${latestDraw.programType} Round` : "Round specific"}
             trend={latestScore > 0 && prevScore > 0 ? { value: Math.abs(crsDiff), isUp: isUpTrend } : undefined}
           />
-          <StatCard
-            title={`ITAs (${currentYear})`}
-            value={totalItasYearToDate.toLocaleString()}
-            icon={Users}
+          <StatCard 
+            title={`ITAs (${currentYear})`} 
+            value={totalItasYearToDate.toLocaleString()} 
+            icon={Users} 
             description={`Filtered ${selectedProgram === 'all' ? 'Total' : selectedProgram}`}
           />
           <DrawPredictor prediction={prediction} />
-          <StatCard
-            title="Your Status"
-            value={userScore !== null ? userScore : "---"}
+          <StatCard 
+            title="Your Status" 
+            value={userScore !== null ? userScore : "---"} 
             icon={userScore !== null ? UserCheck : Zap}
             description={userScore !== null ? "Your Saved Profile" : "No Profile Set"}
             trend={personalGap !== null ? { value: Math.abs(personalGap), isUp: isQualified } : undefined}
@@ -183,10 +183,10 @@ export function HomePage() {
             linkText={userScore !== null ? "Update Profile" : "Start Calculation"}
             className={cn(userScore === null && "border-dashed border-muted-foreground/30")}
           />
-          <StatCard
-            title="Most Recent"
-            value={lastDate}
-            icon={Calendar}
+          <StatCard 
+            title="Most Recent" 
+            value={lastDate} 
+            icon={Calendar} 
             description={selectedProgram === 'all' ? "Across all streams" : `${selectedProgram} specific`}
           />
         </div>
@@ -202,7 +202,7 @@ export function HomePage() {
               <p className="text-sm text-muted-foreground">{marketSummary}</p>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-              <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-xl border">
+              <div className="flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-xl border border-border shadow-inner">
                 <Filter className="size-3.5 text-muted-foreground" />
                 <Select value={rangeLimit} onValueChange={setRangeLimit}>
                   <SelectTrigger className="h-8 w-[140px] border-none bg-transparent shadow-none font-bold text-xs focus:ring-0">
@@ -216,23 +216,29 @@ export function HomePage() {
                   </SelectContent>
                 </Select>
               </div>
-              <ToggleGroup
-                type="single"
-                value={analyticsMode}
+              <ToggleGroup 
+                type="single" 
+                value={analyticsMode} 
                 onValueChange={(v) => v && setAnalyticsMode(v as 'crs' | 'itas')}
-                className="bg-muted/50 p-1 rounded-xl border"
+                className="bg-muted/40 p-1 rounded-xl border border-border shadow-inner"
               >
-                <ToggleGroupItem value="crs" className="rounded-lg px-4 gap-2 data-[state=on]:bg-white data-[state=on]:shadow-sm font-bold text-xs transition-all">
+                <ToggleGroupItem 
+                  value="crs" 
+                  className="rounded-lg px-4 gap-2 data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm font-bold text-xs transition-all"
+                >
                   <LineChart className="size-3.5" /> CRS Score
                 </ToggleGroupItem>
-                <ToggleGroupItem value="itas" className="rounded-lg px-4 gap-2 data-[state=on]:bg-white data-[state=on]:shadow-sm font-bold text-xs transition-all">
+                <ToggleGroupItem 
+                  value="itas" 
+                  className="rounded-lg px-4 gap-2 data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm font-bold text-xs transition-all"
+                >
                   <BarChart3 className="size-3.5" /> ITA Volume
                 </ToggleGroupItem>
               </ToggleGroup>
             </div>
           </div>
           <AnimatePresence mode="wait">
-            <motion.div
+            <motion.div 
               key={`${analyticsMode}-${rangeLimit}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -240,20 +246,20 @@ export function HomePage() {
               transition={{ duration: 0.2 }}
               className="grid gap-6 grid-cols-1 lg:grid-cols-3"
             >
-              <ScoreTrendChart
-                data={rangedDraws}
+              <ScoreTrendChart 
+                data={rangedDraws} 
                 isLoading={isLoading && draws.length === 0}
                 mode={analyticsMode}
               />
-              <InvitationBarChart
-                data={rangedDraws}
+              <InvitationBarChart 
+                data={rangedDraws} 
                 isLoading={isLoading && draws.length === 0}
                 mode={analyticsMode}
               />
             </motion.div>
           </AnimatePresence>
         </div>
-        <div className="rounded-2xl border bg-card shadow-lg p-6 lg:p-8">
+        <div className="rounded-2xl border border-border bg-card shadow-lg p-6 lg:p-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
             <div className="space-y-1">
               <h2 className="text-xl font-bold text-foreground">Recent Activity: {selectedProgram === 'all' ? 'All' : selectedProgram}</h2>
@@ -274,7 +280,7 @@ export function HomePage() {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   key={draw.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between p-5 rounded-xl bg-muted/30 border border-transparent hover:border-primary/20 hover:bg-primary/[0.02] group transition-all duration-300"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-5 rounded-xl bg-muted/20 border border-transparent hover:border-primary/20 hover:bg-primary/[0.02] group transition-all duration-300"
                 >
                   <div className="flex items-center gap-5 truncate">
                     <div className="h-12 w-12 shrink-0 rounded-xl bg-background flex items-center justify-center border-2 border-primary/10 font-black text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300 shadow-sm">
@@ -303,7 +309,7 @@ export function HomePage() {
               ))}
             </AnimatePresence>
             {filteredDraws.length === 0 && (
-              <div className="py-12 text-center text-muted-foreground italic bg-muted/20 rounded-xl border border-dashed">
+              <div className="py-12 text-center text-muted-foreground italic bg-muted/20 rounded-xl border border-dashed border-border">
                 No recent draws found for this specific program type.
               </div>
             )}

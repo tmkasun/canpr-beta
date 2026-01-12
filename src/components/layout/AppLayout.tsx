@@ -32,20 +32,20 @@ export function AppLayout({ children, container = false, className, contentClass
     <TooltipProvider delayDuration={0}>
       <SidebarProvider defaultOpen={false}>
         <AppSidebar />
-        <SidebarInset className={cn("flex flex-col min-h-screen", className)}>
-          <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-md">
-            <SidebarTrigger className="-ml-1" />
+        <SidebarInset className={cn("flex flex-col min-h-screen bg-background transition-colors duration-300", className)}>
+          <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-border bg-background/95 px-4 backdrop-blur-md shadow-sm">
+            <SidebarTrigger className="-ml-1 text-muted-foreground hover:text-foreground transition-colors" />
             <div className="flex-1 overflow-hidden">
               <Breadcrumb>
                 <BreadcrumbList>
                   <BreadcrumbItem className="hidden md:inline-flex">
                     <BreadcrumbLink asChild>
-                      <Link to="/">Home</Link>
+                      <Link to="/" className="text-muted-foreground hover:text-primary transition-colors font-medium">Home</Link>
                     </BreadcrumbLink>
                   </BreadcrumbItem>
                   <BreadcrumbSeparator className="hidden md:inline-flex" />
                   <BreadcrumbItem>
-                    <BreadcrumbPage className="truncate font-medium">{pageName}</BreadcrumbPage>
+                    <BreadcrumbPage className="truncate font-bold tracking-tight text-foreground">{pageName}</BreadcrumbPage>
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>

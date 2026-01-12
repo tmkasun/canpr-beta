@@ -34,15 +34,15 @@ export function StatCard({
       className="h-full"
     >
       <Card className={cn(
-        "overflow-hidden border border-transparent shadow-soft transition-all duration-300 hover:shadow-md hover:border-red-200/50 dark:hover:border-red-900/50 h-full group bg-card flex flex-col",
+        "overflow-hidden border border-border shadow-sm transition-all duration-300 hover:shadow-md hover:border-primary group bg-card flex flex-col h-full",
         className
       )}>
         <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-          <CardTitle className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/80">
+          <CardTitle className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/90">
             {title}
           </CardTitle>
-          <div className="p-2 rounded-xl bg-red-50 dark:bg-red-950/20 group-hover:bg-red-600 group-hover:shadow-[0_0_15px_-3px_rgba(220,38,38,0.4)] dark:group-hover:bg-red-900/40 transition-all duration-300">
-            <Icon className="h-4 w-4 text-red-600 group-hover:text-white transition-colors duration-300" />
+          <div className="p-2 rounded-xl bg-muted group-hover:bg-primary group-hover:shadow-[0_0_15px_-3px_rgba(220,38,38,0.4)] transition-all duration-300">
+            <Icon className="h-4 w-4 text-primary group-hover:text-primary-foreground transition-colors duration-300" />
           </div>
         </CardHeader>
         <CardContent className="flex-1">
@@ -66,15 +66,15 @@ export function StatCard({
                 <span className={cn(
                   "flex items-center text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter",
                   trend.isUp
-                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                    : "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400"
+                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400"
+                    : "bg-rose-100 text-rose-700 dark:bg-rose-950/20 dark:text-rose-400"
                 )}>
                   {trend.isUp ? <TrendingUp className="mr-1 h-3 w-3" /> : <TrendingDown className="mr-1 h-3 w-3" />}
                   {trend.value} pts
                 </span>
               )}
               {description && (
-                <p className="text-[11px] font-medium text-muted-foreground/70 truncate max-w-full italic">
+                <p className="text-[11px] font-medium text-muted-foreground/80 truncate max-w-full italic">
                   {description}
                 </p>
               )}
@@ -83,9 +83,9 @@ export function StatCard({
         </CardContent>
         {link && (
           <CardFooter className="px-6 py-3 border-t border-dashed bg-muted/5 group-hover:bg-muted/10 transition-colors">
-            <Link
-              to={link}
-              className="flex items-center justify-between w-full text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-red-600 transition-colors group/link"
+            <Link 
+              to={link} 
+              className="flex items-center justify-between w-full text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors group/link"
             >
               <span>{linkText || "View Details"}</span>
               <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover/link:translate-x-1" />
