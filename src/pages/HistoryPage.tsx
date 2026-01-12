@@ -20,7 +20,13 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, Filter, Download, FileX, ArrowUpDown, X, RefreshCw, Clock, Eraser } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Search, Filter, Download, FileX, ArrowUpDown, X, RefreshCw, Clock, Eraser, Info } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ProgramType, DrawEntry } from '@shared/types';
 import { toast } from 'sonner';
@@ -36,8 +42,9 @@ export function HistoryPage() {
   const [sort, setSort] = useState<SortConfig>({ key: 'date', direction: 'desc' });
   const filteredDraws = useMemo(() => {
     let result = draws.filter((draw) => {
-      const matchesSearch = draw.drawNumber.toString().includes(search) ||
-                           (draw.description?.toLowerCase().includes(search.toLowerCase()) ?? false);
+      const searchStr = search.toLowerCase();
+      const matchesSearch = draw.drawNumber.toString().includes(searchStr) ||
+                           (draw.description?.toLowerCase().includes(searchStr) ?? false);
       const matchesProgram = programFilter === "all" || draw.programType === programFilter;
       return matchesSearch && matchesProgram;
     });
@@ -47,7 +54,7 @@ export function HistoryPage() {
         const bValue = b[sort.key];
         if (aValue === undefined || bValue === undefined) return 0;
         if (sort.key === 'date') {
-          return sort.direction === 'asc' 
+          return sort.direction === 'asc'
             ? parseISO(a.date).getTime() - parseISO(b.date).getTime()
             : parseISO(b.date).getTime() - parseISO(a.date).getTime();
         }
@@ -62,8 +69,8 @@ export function HistoryPage() {
   const handleRefresh = async () => {
     const { data } = await refetch();
     if (data) {
-      toast.success("Data Refreshed", {
-        description: `Successfully synchronized ${data.length} records from IRCC.`
+      toast.success("Sync Complete", {
+        description: `Successfully updated ${data.length} records from IRCC.`
       });
     }
   };
@@ -71,7 +78,6 @@ export function HistoryPage() {
     setSearch("");
     setProgramFilter("all");
     setSort({ key: 'date', direction: 'desc' });
-    toast.info("Filters cleared");
   };
   const handleSort = (key: keyof DrawEntry) => {
     setSort((prev) => {
@@ -79,11 +85,6 @@ export function HistoryPage() {
         return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
       }
       return { key, direction: 'desc' };
-    });
-  };
-  const handleExport = () => {
-    toast.success("Export Initialized", {
-      description: `Preparing CSV for ${filteredDraws.length} entries.`
     });
   };
   const getProgramBadge = (type: ProgramType) => {
@@ -96,7 +97,7 @@ export function HistoryPage() {
       'FST': { label: 'FST', class: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400" }
     };
     const c = config[type] || config['General'];
-    return <Badge variant="outline" className={cn("font-semibold h-5 text-[10px]", c.class)}>{c.label}</Badge>;
+    return <Badge variant="outline" className={cn("font-bold h-5 text-[10px]", c.class)}>{c.label}</Badge>;
   };
   return (
     <AppLayout container>
@@ -106,20 +107,14 @@ export function HistoryPage() {
             <h1 className="text-3xl font-bold tracking-tight text-foreground">Historical Data</h1>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="h-3.5 w-3.5" />
-              <span>Last synced: {dataUpdatedAt ? format(new Date(dataUpdatedAt), "MMM d, HH:mm:ss") : "Pending..."}</span>
+              <span>IRCC Gateway: {dataUpdatedAt ? format(new Date(dataUpdatedAt), "MMM d, HH:mm:ss") : "Syncing..."}</span>
             </div>
           </div>
           <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={handleRefresh} 
-              disabled={isFetching}
-              className={cn("transition-all duration-200", isFetching && "opacity-50")}
-            >
-              <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin text-red-600")} />
+            <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isFetching}>
+              <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
             </Button>
-            <Button variant="outline" onClick={handleExport} className="gap-2">
+            <Button variant="outline" onClick={() => toast.info("Export is preparing...")} className="gap-2">
               <Download className="h-4 w-4" /> Export
             </Button>
           </div>
@@ -127,103 +122,113 @@ export function HistoryPage() {
         <div className="flex flex-col md:flex-row gap-4 items-center bg-card p-4 rounded-xl border shadow-sm">
           <div className="relative w-full md:max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Filter by draw number..." 
-              className="pl-9 pr-9"
+            <Input
+              placeholder="Search draw # or description..."
+              className="pl-9"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            {search && (
-              <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                <X className="h-4 w-4" />
-              </button>
-            )}
           </div>
           <div className="flex items-center gap-2 w-full md:w-auto">
             <Filter className="h-4 w-4 text-muted-foreground" />
             <Select value={programFilter} onValueChange={setProgramFilter}>
-              <SelectTrigger className="w-full md:w-[180px]">
-                <SelectValue placeholder="Program" />
+              <SelectTrigger className="w-full md:w-[200px]">
+                <SelectValue placeholder="All Programs" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Programs</SelectItem>
+                <SelectItem value="all">All Rounds</SelectItem>
                 <SelectItem value="General">General</SelectItem>
-                <SelectItem value="CEC">CEC Only</SelectItem>
-                <SelectItem value="PNP">PNP Only</SelectItem>
+                <SelectItem value="CEC">CEC (Exp. Class)</SelectItem>
+                <SelectItem value="PNP">PNP (Provincial)</SelectItem>
                 <SelectItem value="Category-based">Category-based</SelectItem>
-                <SelectItem value="FSW">FSW Only</SelectItem>
-                <SelectItem value="FST">FST Only</SelectItem>
+                <SelectItem value="FSW">FSW (Skilled Worker)</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
         <div className="rounded-xl border bg-card shadow-soft overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="bg-muted/50">
-                <TableRow>
-                  <TableHead className="w-[120px] cursor-pointer hover:text-foreground transition-colors" onClick={() => handleSort('drawNumber')}>
-                    <div className="flex items-center gap-1 uppercase text-[10px] font-bold tracking-wider">Draw # <ArrowUpDown className="h-3 w-3" /></div>
-                  </TableHead>
-                  <TableHead className="cursor-pointer hover:text-foreground transition-colors" onClick={() => handleSort('date')}>
-                    <div className="flex items-center gap-1 uppercase text-[10px] font-bold tracking-wider">Date <ArrowUpDown className="h-3 w-3" /></div>
-                  </TableHead>
-                  <TableHead className="uppercase text-[10px] font-bold tracking-wider">Program Type</TableHead>
-                  <TableHead className="text-right cursor-pointer hover:text-foreground transition-colors" onClick={() => handleSort('itasIssued')}>
-                    <div className="flex items-center justify-end gap-1 uppercase text-[10px] font-bold tracking-wider">ITAs <ArrowUpDown className="h-3 w-3" /></div>
-                  </TableHead>
-                  <TableHead className="text-right cursor-pointer hover:text-foreground transition-colors" onClick={() => handleSort('crsScore')}>
-                    <div className="flex items-center justify-end gap-1 uppercase text-[10px] font-bold tracking-wider">Cutoff <ArrowUpDown className="h-3 w-3" /></div>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading && draws.length === 0 ? (
-                  Array(10).fill(0).map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell><Skeleton className="h-4 w-12" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-6 w-20" /></TableCell>
-                      <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
-                      <TableCell className="text-right"><Skeleton className="h-6 w-12 ml-auto rounded-full" /></TableCell>
-                    </TableRow>
-                  ))
-                ) : filteredDraws.length > 0 ? (
-                  filteredDraws.map((draw) => (
-                    <TableRow key={draw.id} className="hover:bg-muted/20 transition-colors group">
-                      <TableCell className="font-bold text-red-600 truncate w-[120px]">#{draw.drawNumber}</TableCell>
-                      <TableCell className="text-muted-foreground whitespace-nowrap">{format(parseISO(draw.date), "MMM d, yyyy")}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-0.5 max-w-[200px]">
-                          <div className="flex items-center gap-2">{getProgramBadge(draw.programType)}</div>
-                          {draw.description && <span className="text-[10px] text-muted-foreground italic truncate" title={draw.description}>{draw.description}</span>}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right font-medium tabular-nums">{draw.itasIssued.toLocaleString()}</TableCell>
-                      <TableCell className="text-right">
-                        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-sm font-bold bg-muted text-foreground tabular-nums group-hover:bg-red-50 dark:group-hover:bg-red-950/30 group-hover:text-red-700 dark:group-hover:text-red-400 transition-colors">{draw.crsScore}</span>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
+          <TooltipProvider>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader className="bg-muted/30">
                   <TableRow>
-                    <TableCell colSpan={5} className="h-64 text-center">
-                      <div className="flex flex-col items-center justify-center p-8">
-                        <div className="p-4 rounded-full bg-muted/50 mb-4">
-                          <FileX className="h-10 w-10 text-muted-foreground" />
-                        </div>
-                        <h3 className="font-semibold text-lg">No matching records</h3>
-                        <p className="text-sm text-muted-foreground mt-1 mb-6">We couldn't find any draws matching your current filters.</p>
-                        <Button onClick={handleClearFilters} variant="secondary" className="gap-2">
-                          <Eraser className="h-4 w-4" /> Clear All Filters
-                        </Button>
-                      </div>
-                    </TableCell>
+                    <TableHead className="cursor-pointer" onClick={() => handleSort('drawNumber')}>
+                      <div className="flex items-center gap-1 uppercase text-[10px] font-bold">Draw # <ArrowUpDown className="h-3 w-3" /></div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer" onClick={() => handleSort('date')}>
+                      <div className="flex items-center gap-1 uppercase text-[10px] font-bold">Date <ArrowUpDown className="h-3 w-3" /></div>
+                    </TableHead>
+                    <TableHead className="uppercase text-[10px] font-bold">Round Details</TableHead>
+                    <TableHead className="text-right cursor-pointer" onClick={() => handleSort('itasIssued')}>
+                      <div className="flex items-center justify-end gap-1 uppercase text-[10px] font-bold">Invitations <ArrowUpDown className="h-3 w-3" /></div>
+                    </TableHead>
+                    <TableHead className="text-right cursor-pointer" onClick={() => handleSort('crsScore')}>
+                      <div className="flex items-center justify-end gap-1 uppercase text-[10px] font-bold">Score <ArrowUpDown className="h-3 w-3" /></div>
+                    </TableHead>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {isLoading && draws.length === 0 ? (
+                    Array(10).fill(0).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                        <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                        <TableCell className="text-right"><Skeleton className="h-4 w-12 ml-auto" /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : filteredDraws.length > 0 ? (
+                    filteredDraws.map((draw) => (
+                      <TableRow key={draw.id} className="hover:bg-muted/20 transition-colors group">
+                        <TableCell className="font-bold text-red-600">#{draw.drawNumber}</TableCell>
+                        <TableCell className="text-muted-foreground tabular-nums">
+                          {format(parseISO(draw.date), "MMM d, yyyy")}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1 max-w-[250px]">
+                            <div className="flex items-center gap-2">
+                              {getProgramBadge(draw.programType)}
+                              {draw.description && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="text-xs max-w-xs">{draw.description}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-muted-foreground truncate italic">
+                              {draw.description || "General admission round"}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right font-medium tabular-nums">{draw.itasIssued.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">
+                          <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-black bg-muted text-foreground group-hover:bg-red-50 dark:group-hover:bg-red-950/30 group-hover:text-red-700 transition-colors tabular-nums">
+                            {draw.crsScore}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-64 text-center">
+                        <div className="flex flex-col items-center justify-center">
+                          <FileX className="h-12 w-12 text-muted-foreground mb-4" />
+                          <h3 className="font-bold text-lg">No Results Found</h3>
+                          <p className="text-sm text-muted-foreground mb-6">Adjust your search or filter criteria.</p>
+                          <Button onClick={handleClearFilters} variant="secondary">Reset Filters</Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </TooltipProvider>
         </div>
       </div>
     </AppLayout>

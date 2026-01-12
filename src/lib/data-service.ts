@@ -1,38 +1,50 @@
 import { DrawEntry, ProgramType } from "@shared/types";
 import { MOCK_DRAWS } from "@shared/mock-canada-data";
-import { parse, format, isValid } from "date-fns";
+import { parse, format, isValid, parseISO } from "date-fns";
 import { api } from "./api-client";
 const CACHE_KEY = "maple_metrics_draw_cache";
+/**
+ * Updated interface to match the actual IRCC Express Entry JSON schema
+ * based on client feedback and sample structure.
+ */
 interface IrccDraw {
-  roundNumber: string | number;
-  roundDate: string;
-  roundType: string;
-  roundName: string;
-  roundInvitations: string | number;
-  roundLowestScore: string | number;
+  drawNumber: string | number;
+  drawDate: string;
+  drawName: string;
+  drawSize: string | number;
+  drawCRS: string | number;
+  drawDateFull?: string;
 }
 interface IrccResponse {
   rounds: IrccDraw[];
 }
-function determineProgramType(name: string, type: string): ProgramType {
-  const combined = (name + " " + type).toLowerCase();
-  // Specific Category-based rounds often contain these keywords
+/**
+ * Strips HTML tags from a string to ensure safe UI rendering.
+ */
+function stripHtml(html: string): string {
+  if (!html) return "";
+  return html.replace(/<[^>]*>?/gm, "").trim();
+}
+/**
+ * Maps the verbose 'drawName' from IRCC to standardized ProgramType codes.
+ */
+function determineProgramType(name: string): ProgramType {
+  const n = name.toLowerCase();
+  if (n.includes("provincial nominee")) return "PNP";
+  if (n.includes("canadian experience")) return "CEC";
+  if (n.includes("federal skilled worker")) return "FSW";
+  if (n.includes("federal skilled trades")) return "FST";
   if (
-    combined.includes("trade occupations") ||
-    combined.includes("agriculture") ||
-    combined.includes("transport") ||
-    combined.includes("stem") ||
-    combined.includes("healthcare") ||
-    combined.includes("french") ||
-    combined.includes("category-based")
+    n.includes("stem") ||
+    n.includes("healthcare") ||
+    n.includes("french") ||
+    n.includes("transport") ||
+    n.includes("trade") ||
+    n.includes("agriculture") ||
+    n.includes("category-based")
   ) {
     return "Category-based";
   }
-  // Base Programs
-  if (combined.includes("provincial nominee")) return "PNP";
-  if (combined.includes("canadian experience")) return "CEC";
-  if (combined.includes("federal skilled worker")) return "FSW";
-  if (combined.includes("federal skilled trades")) return "FST";
   return "General";
 }
 export async function fetchLatestDraws(): Promise<DrawEntry[]> {
@@ -43,27 +55,35 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
     }
     const normalized: DrawEntry[] = json.rounds.reduce((acc: DrawEntry[], r, idx) => {
       try {
-        if (!r.roundNumber || !r.roundDate) return acc;
+        if (!r.drawNumber || !r.drawDate) return acc;
+        // Clean values
+        const cleanName = stripHtml(r.drawName || "");
+        const rawDate = r.drawDate.trim();
+        // Attempt to parse date (Expected: yyyy-MM-dd)
         let dateIso = "";
-        const formats = ["MMMM d, yyyy", "yyyy-MM-dd", "MMM d, yyyy"];
-        for (const fmt of formats) {
-          const parsedDate = parse(r.roundDate, fmt, new Date());
-          if (isValid(parsedDate)) {
-            dateIso = format(parsedDate, "yyyy-MM-dd");
-            break;
+        const parsedDate = parseISO(rawDate);
+        if (isValid(parsedDate)) {
+          dateIso = format(parsedDate, "yyyy-MM-dd");
+        } else {
+          // Fallback parsing for common IRCC formats if ISO fails
+          const formats = ["MMMM d, yyyy", "MMM d, yyyy", "yyyy-MM-dd"];
+          for (const fmt of formats) {
+            const p = parse(rawDate, fmt, new Date());
+            if (isValid(p)) {
+              dateIso = format(p, "yyyy-MM-dd");
+              break;
+            }
           }
         }
-        if (!dateIso) {
-          dateIso = new Date().toISOString().split('T')[0];
-        }
+        if (!dateIso) return acc;
         const entry: DrawEntry = {
-          id: `ircc-${r.roundNumber.toString().trim() || idx}`,
-          drawNumber: parseInt(r.roundNumber.toString().replace(/,/g, "")) || 0,
+          id: `ircc-${r.drawNumber.toString().replace(/,/g, "").trim() || idx}`,
+          drawNumber: parseInt(r.drawNumber.toString().replace(/,/g, "")) || 0,
           date: dateIso,
-          programType: determineProgramType(r.roundName || "", r.roundType || ""),
-          itasIssued: parseInt(r.roundInvitations?.toString().replace(/,/g, "") || "0") || 0,
-          crsScore: parseInt(r.roundLowestScore?.toString().replace(/,/g, "") || "0") || 0,
-          description: (r.roundName && r.roundName !== r.roundType) ? r.roundName : undefined
+          programType: determineProgramType(cleanName),
+          itasIssued: parseInt(r.drawSize?.toString().replace(/,/g, "") || "0") || 0,
+          crsScore: parseInt(r.drawCRS?.toString().replace(/,/g, "") || "0") || 0,
+          description: cleanName
         };
         acc.push(entry);
       } catch (innerError) {
@@ -71,15 +91,18 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
       }
       return acc;
     }, []);
-    if (normalized.length > 0) {
+    // Ensure strictly descending chronological order
+    const sorted = normalized.sort((a, b) => 
+      parseISO(b.date).getTime() - parseISO(a.date).getTime()
+    );
+    if (sorted.length > 0) {
       localStorage.setItem(CACHE_KEY, JSON.stringify({
         timestamp: Date.now(),
-        data: normalized
+        data: sorted
       }));
     }
-    return normalized;
+    return sorted;
   } catch (error) {
-    // Correctly logging the error object message
     console.error("[DATA SERVICE] Fetch failed:", error instanceof Error ? error.message : String(error));
     try {
       const cached = localStorage.getItem(CACHE_KEY);
@@ -90,8 +113,8 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
         }
       }
     } catch {
-      // Fallback silently if cache is corrupt
+      // Fallback silently
     }
-    return MOCK_DRAWS;
+    return MOCK_DRAWS.sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
   }
 }

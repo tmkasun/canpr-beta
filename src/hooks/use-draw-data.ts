@@ -1,16 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchLatestDraws } from "@/lib/data-service";
-import { DrawEntry } from "@shared/types";
-import { parseISO, isAfter, startOfYear } from "date-fns";
+import { parseISO, isAfter, startOfYear, isValid } from "date-fns";
 export function useDrawData() {
   const query = useQuery({
     queryKey: ["draws"],
     queryFn: fetchLatestDraws,
-    staleTime: 0, // Always consider data stale
+    staleTime: 1000 * 60 * 5, // 5 minutes cache
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
   });
-  const draws = query.data ?? [];
+  const rawDraws = query.data ?? [];
+  // Guarantee chronological descending order for all consumers
+  const draws = [...rawDraws].sort((a, b) => {
+    const timeA = parseISO(a.date).getTime();
+    const timeB = parseISO(b.date).getTime();
+    return timeB - timeA;
+  });
   const latestDraw = draws[0] ?? null;
   const previousDraw = draws[1] ?? null;
   const currentYear = new Date().getFullYear();
@@ -18,7 +23,8 @@ export function useDrawData() {
   const totalItasYearToDate = draws
     .filter(d => {
       try {
-        return isAfter(parseISO(d.date), yearStart);
+        const dDate = parseISO(d.date);
+        return isValid(dDate) && isAfter(dDate, yearStart);
       } catch {
         return false;
       }
@@ -31,6 +37,7 @@ export function useDrawData() {
     previousDraw,
     totalItasYearToDate,
     currentYear,
-    isInitialLoading: query.isLoading && !query.isFetching, // Specifically for the very first load
+    isInitialLoading: query.isLoading && !query.isFetching,
+    dataUpdatedAt: query.dataUpdatedAt,
   };
 }
