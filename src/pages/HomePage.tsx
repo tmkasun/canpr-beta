@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import {
   Users,
   Calendar,
@@ -39,11 +39,26 @@ export function HomePage() {
   const [selectedProgram, setSelectedProgram] = useState<ProgramType | 'all'>('all');
   const [analyticsMode, setAnalyticsMode] = useState<'crs' | 'itas'>('crs');
   const [rangeLimit, setRangeLimit] = useState<string>('20');
+  // Track previous fetching state to detect sync completions
+  const prevIsFetching = useRef(isFetching);
   const { data: profilesData, isLoading: profilesLoading } = useQuery({
     queryKey: ['profiles'],
     queryFn: () => api<{ items: CRSProfile[] }>('/api/profiles'),
     staleTime: 1000 * 60 * 5,
   });
+  // Reactive Filter Intelligence: Auto-align with latest draw on sync completion or initial load
+  useEffect(() => {
+    const syncJustFinished = prevIsFetching.current && !isFetching;
+    const isInitialLoad = !isLoading && draws.length > 0 && selectedProgram === 'all';
+    if ((syncJustFinished || isInitialLoad) && draws.length > 0) {
+      const latestType = draws[0].programType;
+      // Only auto-switch if we aren't already on a specific filter or if a fresh sync happened
+      if (selectedProgram === 'all' || syncJustFinished) {
+        setSelectedProgram(latestType);
+      }
+    }
+    prevIsFetching.current = isFetching;
+  }, [draws, isFetching, isLoading]);
   const filteredDraws = useMemo(() => {
     if (selectedProgram === 'all') return draws;
     return draws.filter(d => d.programType === selectedProgram);
@@ -62,7 +77,6 @@ export function HomePage() {
     if (latestScore <= 0 || prevScore <= 0) return 0;
     return latestScore - prevScore;
   }, [latestScore, prevScore]);
-  // Semantic Logic: Lower scores are POSITIVE for immigrants
   const isPositiveTrend = crsDiff <= 0;
   const totalItasYearToDate = useMemo(() => {
     const yearStart = startOfYear(new Date(currentYear, 0, 1));
@@ -171,16 +185,16 @@ export function HomePage() {
             </Link>
           </div>
         </div>
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+        <motion.div layout className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
           <StatCard
             title="Latest Cutoff"
             value={latestScore || "---"}
             icon={Trophy}
             description={latestDraw?.programType ? `${latestDraw.programType} Round` : "No draw found"}
-            trend={crsDiff !== 0 ? { 
-              value: Math.abs(crsDiff), 
+            trend={crsDiff !== 0 ? {
+              value: Math.abs(crsDiff),
               isPositive: isPositiveTrend,
-              iconDirection: crsDiff < 0 ? 'down' : 'up' 
+              iconDirection: crsDiff < 0 ? 'down' : 'up'
             } : undefined}
           />
           <StatCard
@@ -200,8 +214,8 @@ export function HomePage() {
               value={userScore !== null ? userScore : "N/A"}
               icon={userScore !== null ? UserCheck : Zap}
               description={userScore !== null ? `Vs ${benchmarkLabel}` : "No Score Set"}
-              trend={personalGap !== null ? { 
-                value: Math.abs(personalGap), 
+              trend={personalGap !== null ? {
+                value: Math.abs(personalGap),
                 isPositive: isQualified,
                 iconDirection: personalGap >= 0 ? 'up' : 'down'
               } : undefined}
@@ -216,7 +230,7 @@ export function HomePage() {
             icon={Calendar}
             description={selectedProgram === 'all' ? "Across IRCC" : `${selectedProgram} Segment`}
           />
-        </div>
+        </motion.div>
         <div className="space-y-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="space-y-1">

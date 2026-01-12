@@ -39,8 +39,14 @@ export function StatCard({
   };
   return (
     <motion.div
+      layout
       whileHover={{ y: -4 }}
-      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      transition={{ 
+        type: "spring", 
+        stiffness: 300, 
+        damping: 30,
+        layout: { duration: 0.3 }
+      }}
       className="h-full"
     >
       <Card className={cn(
@@ -59,7 +65,7 @@ export function StatCard({
           <div className="overflow-hidden">
             <AnimatePresence mode="wait">
               <motion.div
-                key={value}
+                key={`val-${title}-${value}`}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
