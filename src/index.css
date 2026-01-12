@@ -43,11 +43,11 @@
     --foreground: 210 40% 98%;
     --primary: 352 95% 44%;
     --primary-foreground: 0 0% 100%;
-    --muted: 217.2 32.6% 14%; /* Slightly deeper for background distinction */
-    --muted-foreground: 215 20.2% 70%; /* Increased brightness for readability */
-    --border: 217.2 32.6% 22%; /* Strengthened border contrast in dark mode */
+    --muted: 217.2 32.6% 14%;
+    --muted-foreground: 215 20.2% 70%;
+    --border: 217.2 32.6% 22%;
     --ring: 352 95% 44%;
-    --card: 222.2 84% 6%; /* Slight lift from pure background */
+    --card: 222.2 84% 6%;
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 6%;
     --popover-foreground: 210 40% 98%;
@@ -68,25 +68,27 @@
     --sidebar-primary: 352 95% 44%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 217.2 32.6% 12%;
-    --sidebar-accent-foreground: 352 95% 60%; /* Brighter red for accent in dark mode */
+    --sidebar-accent-foreground: 352 95% 60%;
     --sidebar-border: 217.2 32.6% 20%;
     --sidebar-ring: 352 95% 44%;
   }
   * {
     @apply border-border;
   }
-  html {
-    scroll-behavior: smooth;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground transition-colors duration-300 ease-in-out;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     text-rendering: optimizeLegibility;
   }
+  /* Smooth transitions for surface elements */
+  .card, .sidebar, header, .bg-card, .bg-muted, .border-border {
+    @apply transition-colors duration-300 ease-in-out;
+  }
 }
 @layer components {
+  .chart-grid line {
+    @apply stroke-border/40;
+  }
   .btn-gradient {
     @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 text-white shadow-lg hover:scale-105 active:scale-95;
     background: linear-gradient(135deg, #D80621 0%, #B0051B 100%);

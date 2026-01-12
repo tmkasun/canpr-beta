@@ -32,7 +32,6 @@ function determineProgramType(name: string): ProgramType {
 }
 function safeParseInt(val: string | number | undefined, fallback = 0): number {
   if (val === undefined || val === null) return fallback;
-  // Handle strings with commas (thousand separators) or extra whitespace
   const cleanStr = val.toString().replace(/,/g, "").replace(/[^0-9.]/g, "").trim();
   const parsed = parseInt(cleanStr, 10);
   return isNaN(parsed) ? fallback : parsed;
@@ -47,7 +46,8 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
       try {
         if (!r.drawNumber || !r.drawDate) return acc;
         const cleanName = stripHtml(r.drawName || "Express Entry Round");
-        const rawDate = r.drawDate.trim();
+        // IRCC dates can contain "EST/EDT" suffixes that break native ISO parsing
+        const rawDate = r.drawDate.trim().replace(/\s+(EST|EDT|UTC).*$/, "");
         let dateIso = "";
         const parsedIso = parseISO(rawDate);
         if (isValid(parsedIso)) {
@@ -65,21 +65,22 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
           }
         }
         if (!dateIso) return acc;
+        const crsValue = safeParseInt(r.drawCRS);
+        // Defensive check: filter out impossible or placeholder scores
+        if (crsValue <= 0 || crsValue > 1200) return acc;
         const entry: DrawEntry = {
-          id: `ircc-${safeParseInt(r.drawNumber, idx)}`,
+          // Absolute uniqueness even with duplicate draw numbers in source
+          id: `ircc-${safeParseInt(r.drawNumber, idx)}-${idx}`,
           drawNumber: safeParseInt(r.drawNumber),
           date: dateIso,
           programType: determineProgramType(cleanName),
           itasIssued: safeParseInt(r.drawSize),
-          crsScore: safeParseInt(r.drawCRS),
+          crsScore: crsValue,
           description: cleanName
         };
-        // Final sanity check for critical fields
-        if (entry.drawNumber > 0 && entry.crsScore > 0) {
-          acc.push(entry);
-        }
+        acc.push(entry);
       } catch (innerError) {
-        // Silently skip corrupted records in the feed
+        // Skip corrupted individual records
       }
       return acc;
     }, []);
@@ -99,12 +100,10 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
       try {
         const parsed = JSON.parse(cached);
         if (parsed?.data && Array.isArray(parsed.data)) {
-          console.warn("[DATA SERVICE] Fetch failed, using cached data.", error);
           return parsed.data;
         }
-      } catch { /* Cache corrupted, fall through */ }
+      } catch { /* ignored */ }
     }
-    console.error("[DATA SERVICE] Fetch failed and no cache available. Using mock fallback.", error);
     return MOCK_DRAWS.sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
   }
 }

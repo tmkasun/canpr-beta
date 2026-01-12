@@ -70,14 +70,14 @@ export function HomePage() {
   }, [filteredDraws, currentYear]);
   const latestProfile = useMemo(() => {
     if (!profilesData?.items || profilesData.items.length === 0) return null;
-    return [...profilesData.items].sort((a, b) => 
+    return [...profilesData.items].sort((a, b) =>
       parseISO(b.date).getTime() - parseISO(a.date).getTime()
     )[0];
   }, [profilesData]);
   const isNewDraw = useMemo(() => {
     if (!latestDraw?.date) return false;
     const d = parseISO(latestDraw.date);
-    return isValid(d) && differenceInDays(new Date(), d) <= 14;
+    return isValid(d) && differenceInDays(new Date(), d) <= 10;
   }, [latestDraw]);
   const lastDate = useMemo(() => {
     if (!latestDraw?.date) return '---';
@@ -88,10 +88,10 @@ export function HomePage() {
   const personalGap = (userScore !== null && latestScore > 0) ? userScore - latestScore : null;
   const isQualified = personalGap !== null && personalGap >= 0;
   const marketSummary = useMemo(() => {
-    if (filteredDraws.length < 2) return "";
-    const avgScore = Math.round(filteredDraws.slice(0, 5).reduce((a, b) => a + b.crsScore, 0) / 5);
-    const direction = crsDiff > 0 ? "climbing" : "cooling";
-    return `The ${selectedProgram === 'all' ? 'General' : selectedProgram} market is ${direction}; scores average ${avgScore} pts recently.`;
+    if (filteredDraws.length < 2) return "Loading market data...";
+    const avgScore = Math.round(filteredDraws.slice(0, 5).reduce((a, b) => a + b.crsScore, 0) / Math.min(filteredDraws.length, 5));
+    const direction = crsDiff > 0 ? "ascending" : "cooling";
+    return `The ${selectedProgram === 'all' ? 'general' : selectedProgram} segment is currently ${direction}; scores have averaged ${avgScore} pts recently.`;
   }, [filteredDraws, selectedProgram, crsDiff]);
   if (isLoading && draws.length === 0) {
     return (
@@ -111,28 +111,35 @@ export function HomePage() {
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-3xl font-bold tracking-tight text-foreground">Executive Dashboard</h1>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => refetch()} 
-                disabled={isFetching}
-                className="h-8 w-8 rounded-full hover:bg-muted"
-                title="Refresh Live Data"
-              >
-                <RefreshCcw className={cn("h-4 w-4", isFetching && "animate-spin")} />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => refetch()}
+                  disabled={isFetching}
+                  className="h-9 w-9 rounded-full hover:bg-muted transition-all active:scale-90"
+                  title="Refresh Live Data"
+                >
+                  <RefreshCcw className={cn("h-4.5 w-4.5", isFetching && "animate-spin text-primary")} />
+                </Button>
+                {dataUpdatedAt && (
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest bg-muted/30 px-2 py-1 rounded-md">
+                    Last sync: {format(new Date(dataUpdatedAt), "HH:mm")}
+                  </span>
+                )}
+              </div>
               {isNewDraw && (
-                <Badge className="bg-emerald-500 text-white border-none shadow-sm h-6 px-3 animate-pulse">
-                  <Bell className="w-3 h-3 mr-1.5" /> Recent Round
+                <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white border-none shadow-sm h-6 px-3 animate-pulse">
+                  <Bell className="w-3 h-3 mr-1.5" /> New Round
                 </Badge>
               )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-muted-foreground text-sm font-medium">IRCC Intelligence Terminal • {currentYear}</p>
+              <p className="text-muted-foreground text-sm font-medium tracking-tight">Canada Immigration Terminal • {currentYear}</p>
               {dataUpdatedAt && (
-                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 tabular-nums bg-muted/50 px-2 py-0.5 rounded-md border">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 tabular-nums font-bold">
                   <Clock className="size-3" />
-                  Synced {formatDistanceToNow(new Date(dataUpdatedAt), { addSuffix: true })}
+                  {formatDistanceToNow(new Date(dataUpdatedAt), { addSuffix: true })}
                 </div>
               )}
             </div>
@@ -142,7 +149,7 @@ export function HomePage() {
               <SelectTrigger className="w-full sm:w-[180px] h-12 rounded-xl border-muted bg-card shadow-sm font-bold">
                 <SelectValue placeholder="All Programs" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="rounded-xl shadow-2xl">
                 <SelectItem value="all">All Rounds</SelectItem>
                 <SelectItem value="General">General</SelectItem>
                 <SelectItem value="CEC">CEC (Exp. Class)</SelectItem>
@@ -153,53 +160,53 @@ export function HomePage() {
             </Select>
             <Link to="/calculator" className="w-full">
               <Button size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-xl shadow-primary/20 px-8 font-bold rounded-xl h-12">
-                Calculate Score
+                Predict Your Score
               </Button>
             </Link>
           </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <StatCard 
-            title="Latest Cutoff" 
-            value={latestScore || "---"} 
-            icon={Trophy} 
-            description={latestDraw?.programType ? `${latestDraw.programType} Round` : "Round specific"}
+          <StatCard
+            title="Latest Cutoff"
+            value={latestScore || "---"}
+            icon={Trophy}
+            description={latestDraw?.programType ? `${latestDraw.programType} Round` : "Specific round"}
             trend={latestScore > 0 && prevScore > 0 ? { value: Math.abs(crsDiff), isUp: isUpTrend } : undefined}
           />
-          <StatCard 
-            title={`ITAs (${currentYear})`} 
-            value={totalItasYearToDate.toLocaleString()} 
-            icon={Users} 
-            description={`Filtered ${selectedProgram === 'all' ? 'Total' : selectedProgram}`}
+          <StatCard
+            title={`ITAs (${currentYear})`}
+            value={totalItasYearToDate.toLocaleString()}
+            icon={Users}
+            description={selectedProgram === 'all' ? 'Total Issued' : `${selectedProgram} Rounds`}
           />
           <DrawPredictor prediction={prediction} />
-          <StatCard 
-            title="Your Status" 
-            value={userScore !== null ? userScore : "---"} 
+          <StatCard
+            title="Personal Status"
+            value={userScore !== null ? userScore : "N/A"}
             icon={userScore !== null ? UserCheck : Zap}
-            description={userScore !== null ? "Your Saved Profile" : "No Profile Set"}
+            description={userScore !== null ? latestProfile?.label : "No Profile Set"}
             trend={personalGap !== null ? { value: Math.abs(personalGap), isUp: isQualified } : undefined}
             link="/calculator"
-            linkText={userScore !== null ? "Update Profile" : "Start Calculation"}
-            className={cn(userScore === null && "border-dashed border-muted-foreground/30")}
+            linkText={userScore !== null ? "Optimize Profile" : "Run Calculation"}
+            className={cn(userScore === null && "border-dashed opacity-80")}
           />
-          <StatCard 
-            title="Most Recent" 
-            value={lastDate} 
-            icon={Calendar} 
-            description={selectedProgram === 'all' ? "Across all streams" : `${selectedProgram} specific`}
+          <StatCard
+            title="Last Draw"
+            value={lastDate}
+            icon={Calendar}
+            description={selectedProgram === 'all' ? "Across IRCC" : `${selectedProgram} Segment`}
           />
         </div>
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold tracking-tight">Deep Trend Analysis</h2>
-                <Badge variant="outline" className="text-[10px] uppercase h-5 font-black border-red-200 text-red-600 bg-red-50 dark:bg-red-950/20">
-                  <Info className="size-3 mr-1" /> Market Intelligence
+                <h2 className="text-xl font-bold tracking-tight">Market Intelligence</h2>
+                <Badge variant="outline" className="text-[10px] uppercase h-5 font-black border-primary/20 text-primary bg-primary/5">
+                  <Info className="size-3 mr-1" /> Category Analysis
                 </Badge>
               </div>
-              <p className="text-sm text-muted-foreground">{marketSummary}</p>
+              <p className="text-sm text-muted-foreground font-medium">{marketSummary}</p>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
               <div className="flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-xl border border-border shadow-inner">
@@ -208,7 +215,7 @@ export function HomePage() {
                   <SelectTrigger className="h-8 w-[140px] border-none bg-transparent shadow-none font-bold text-xs focus:ring-0">
                     <SelectValue placeholder="Range" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="rounded-xl">
                     <SelectItem value="10">Last 10 Draws</SelectItem>
                     <SelectItem value="20">Last 20 Draws</SelectItem>
                     <SelectItem value="50">Last 50 Draws</SelectItem>
@@ -216,21 +223,21 @@ export function HomePage() {
                   </SelectContent>
                 </Select>
               </div>
-              <ToggleGroup 
-                type="single" 
-                value={analyticsMode} 
+              <ToggleGroup
+                type="single"
+                value={analyticsMode}
                 onValueChange={(v) => v && setAnalyticsMode(v as 'crs' | 'itas')}
                 className="bg-muted/40 p-1 rounded-xl border border-border shadow-inner"
               >
-                <ToggleGroupItem 
-                  value="crs" 
-                  className="rounded-lg px-4 gap-2 data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm font-bold text-xs transition-all"
+                <ToggleGroupItem
+                  value="crs"
+                  className="rounded-lg px-4 gap-2 data-[state=on]:bg-card data-[state=on]:text-primary data-[state=on]:shadow-md font-bold text-xs transition-all"
                 >
                   <LineChart className="size-3.5" /> CRS Score
                 </ToggleGroupItem>
-                <ToggleGroupItem 
-                  value="itas" 
-                  className="rounded-lg px-4 gap-2 data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm font-bold text-xs transition-all"
+                <ToggleGroupItem
+                  value="itas"
+                  className="rounded-lg px-4 gap-2 data-[state=on]:bg-card data-[state=on]:text-primary data-[state=on]:shadow-md font-bold text-xs transition-all"
                 >
                   <BarChart3 className="size-3.5" /> ITA Volume
                 </ToggleGroupItem>
@@ -238,21 +245,21 @@ export function HomePage() {
             </div>
           </div>
           <AnimatePresence mode="wait">
-            <motion.div 
-              key={`${analyticsMode}-${rangeLimit}`}
+            <motion.div
+              key={`${analyticsMode}-${rangeLimit}-${selectedProgram}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: 0.3 }}
               className="grid gap-6 grid-cols-1 lg:grid-cols-3"
             >
-              <ScoreTrendChart 
-                data={rangedDraws} 
+              <ScoreTrendChart
+                data={rangedDraws}
                 isLoading={isLoading && draws.length === 0}
                 mode={analyticsMode}
               />
-              <InvitationBarChart 
-                data={rangedDraws} 
+              <InvitationBarChart
+                data={rangedDraws}
                 isLoading={isLoading && draws.length === 0}
                 mode={analyticsMode}
               />
@@ -262,12 +269,12 @@ export function HomePage() {
         <div className="rounded-2xl border border-border bg-card shadow-lg p-6 lg:p-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
             <div className="space-y-1">
-              <h2 className="text-xl font-bold text-foreground">Recent Activity: {selectedProgram === 'all' ? 'All' : selectedProgram}</h2>
-              <p className="text-sm text-muted-foreground">Historical logs matching your current filter</p>
+              <h2 className="text-xl font-bold text-foreground">Activity Stream: {selectedProgram === 'all' ? 'Consolidated' : selectedProgram}</h2>
+              <p className="text-sm text-muted-foreground font-medium">Verified rounds matching your active search profile</p>
             </div>
             <Link to="/history" className="w-full sm:w-auto">
               <Button variant="outline" className="w-full sm:w-auto text-primary hover:text-primary border-primary/20 hover:bg-primary/5 font-bold group rounded-xl">
-                View History <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                Deep History <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Button>
             </Link>
           </div>
@@ -276,31 +283,31 @@ export function HomePage() {
               {filteredDraws.slice(0, 5).map((draw) => (
                 <motion.div
                   layout
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 10 }}
                   key={draw.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between p-5 rounded-xl bg-muted/20 border border-transparent hover:border-primary/20 hover:bg-primary/[0.02] group transition-all duration-300"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-5 rounded-xl bg-muted/20 border border-transparent hover:border-primary/20 hover:bg-primary/[0.02] group transition-all duration-300 shadow-sm"
                 >
                   <div className="flex items-center gap-5 truncate">
                     <div className="h-12 w-12 shrink-0 rounded-xl bg-background flex items-center justify-center border-2 border-primary/10 font-black text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300 shadow-sm">
                       {draw.drawNumber}
                     </div>
                     <div className="truncate space-y-0.5">
-                      <div className="font-bold text-base text-foreground truncate">{draw.programType} Round</div>
-                      <div className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider">
+                      <div className="font-bold text-base text-foreground truncate group-hover:text-primary transition-colors">{draw.programType} Round</div>
+                      <div className="text-[11px] text-muted-foreground uppercase font-bold tracking-widest">
                         {isValid(parseISO(draw.date)) ? format(parseISO(draw.date), "MMMM d, yyyy") : draw.date}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center justify-between sm:justify-end gap-10 mt-4 sm:mt-0 pt-4 sm:pt-0 border-t sm:border-t-0 border-primary/5">
                     <div className="text-left sm:text-right">
-                      <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Invitations</div>
+                      <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Invitations</div>
                       <div className="font-black text-base tabular-nums">{draw.itasIssued.toLocaleString()}</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Min. Score</div>
-                      <Badge variant="secondary" className="font-black bg-primary/10 text-primary border-primary/5 tabular-nums px-4 py-1 text-sm rounded-lg">
+                      <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Min. Score</div>
+                      <Badge variant="secondary" className="font-black bg-primary/10 text-primary border-primary/5 tabular-nums px-4 py-1 text-sm rounded-lg shadow-inner">
                         {draw.crsScore}
                       </Badge>
                     </div>
@@ -309,8 +316,9 @@ export function HomePage() {
               ))}
             </AnimatePresence>
             {filteredDraws.length === 0 && (
-              <div className="py-12 text-center text-muted-foreground italic bg-muted/20 rounded-xl border border-dashed border-border">
-                No recent draws found for this specific program type.
+              <div className="py-16 text-center text-muted-foreground italic bg-muted/20 rounded-xl border border-dashed border-border/60">
+                <Info className="size-8 mx-auto mb-3 opacity-20" />
+                No draw data found matching the selected program criteria.
               </div>
             )}
           </div>

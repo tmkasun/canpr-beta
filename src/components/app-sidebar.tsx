@@ -35,21 +35,21 @@ export function AppSidebar(): JSX.Element {
   const { state } = useSidebar();
   const isExpanded = state === "expanded";
   return (
-    <Sidebar collapsible="icon" className="border-r border-border">
+    <Sidebar collapsible="icon" className="border-r border-border transition-all duration-300">
       <SidebarHeader>
-        <div className="flex items-center gap-3 px-2 py-4 overflow-hidden">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-600 text-white shadow-lg ring-1 ring-red-500/20">
-            <Leaf className="size-5 fill-white/10" />
+        <div className="flex items-center gap-3 px-2 py-6 overflow-hidden">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white shadow-xl shadow-primary/20 ring-1 ring-primary/30 transition-transform hover:scale-105 active:scale-95">
+            <Leaf className="size-5.5 fill-white/10" />
           </div>
-          <div className="flex flex-col truncate">
-            <span className="text-sm font-bold leading-none truncate tracking-tight">MapleMetrics</span>
-            <span className="text-[10px] text-muted-foreground truncate font-medium uppercase tracking-wider">Canada PR Terminal</span>
+          <div className="flex flex-col truncate ml-1">
+            <span className="text-sm font-black leading-none truncate tracking-tight text-foreground">MapleMetrics</span>
+            <span className="text-[9px] text-muted-foreground truncate font-black uppercase tracking-[0.2em] mt-1.5 opacity-80">IRCC Terminal</span>
           </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarMenu>
+          <SidebarMenu className="gap-1.5">
             {NAV_ITEMS.map((item) => {
               const isActive = location.pathname === item.path;
               return (
@@ -59,18 +59,18 @@ export function AppSidebar(): JSX.Element {
                     isActive={isActive}
                     tooltip={item.title}
                     className={cn(
-                      "transition-all duration-200",
-                      isActive 
-                        ? "bg-primary/10 text-primary hover:bg-primary/15 dark:bg-primary/20 dark:text-primary hover:dark:bg-primary/25" 
-                        : "hover:bg-muted hover:text-foreground"
+                      "transition-all duration-200 h-10 rounded-xl px-3",
+                      isActive
+                        ? "bg-primary/10 text-primary hover:bg-primary/15 dark:bg-primary/20"
+                        : "hover:bg-muted/80 hover:text-foreground text-muted-foreground"
                     )}
                   >
                     <Link to={item.path} className="flex items-center gap-3">
                       <item.icon className={cn(
-                        "size-4 shrink-0 transition-colors",
-                        isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                        "size-4.5 shrink-0 transition-all",
+                        isActive ? "text-primary scale-110" : "group-hover:text-foreground"
                       )} />
-                      <span className="font-bold text-xs truncate">{item.title}</span>
+                      <span className="font-black text-xs truncate tracking-tight">{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -79,37 +79,39 @@ export function AppSidebar(): JSX.Element {
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="border-t border-border p-4 bg-muted/20">
-        <div className="flex flex-col gap-4 px-2 overflow-hidden">
+      <SidebarFooter className="border-t border-border p-4 bg-muted/10">
+        <div className="flex flex-col gap-4 px-1 overflow-hidden">
           <Tooltip>
             <TooltipTrigger asChild>
               <div className={cn(
-                "flex items-center cursor-help group transition-all",
-                isExpanded ? "gap-2" : "justify-center"
+                "flex items-center cursor-help group transition-all p-2 rounded-xl hover:bg-muted/30",
+                isExpanded ? "gap-3" : "justify-center"
               )}>
                 <div className={cn(
-                  "size-2 shrink-0 rounded-full transition-all duration-500",
-                  isFetching ? "bg-primary animate-pulse" : "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]",
-                  isExpanded ? "" : "mx-auto"
+                  "size-2 shrink-0 rounded-full transition-all duration-700",
+                  isFetching 
+                    ? "bg-primary animate-pulse shadow-[0_0_8px_hsl(var(--primary))]" 
+                    : "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)] dark:shadow-[0_0_12px_rgba(16,185,129,0.2)]",
+                  !isExpanded && "mx-auto"
                 )} />
                 {isExpanded && (
                   <div className="flex flex-col truncate">
-                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest truncate group-hover:text-foreground">
-                      {isFetching ? "Syncing..." : "IRCC Gateway"}
+                    <span className="text-[10px] font-black text-muted-foreground/80 uppercase tracking-widest truncate group-hover:text-foreground transition-colors">
+                      {isFetching ? "Syncing Feed" : "Gateway Active"}
                     </span>
-                    <span className="text-[9px] text-muted-foreground/60 tabular-nums truncate font-bold">
-                      {dataUpdatedAt ? format(new Date(dataUpdatedAt), "HH:mm:ss") : "Connecting..."}
+                    <span className="text-[9px] text-muted-foreground/50 tabular-nums truncate font-bold">
+                      {dataUpdatedAt ? format(new Date(dataUpdatedAt), "HH:mm:ss") : "Awaiting sync"}
                     </span>
                   </div>
                 )}
               </div>
             </TooltipTrigger>
-            <TooltipContent side="right" className="bg-card text-foreground border-border shadow-xl">
-              <p className="text-xs font-bold">Securely connected to official IRCC datasets.</p>
+            <TooltipContent side="right" className="bg-card text-foreground border-border shadow-2xl rounded-xl">
+              <p className="text-xs font-bold px-1 py-0.5">Verified connection to IRCC servers.</p>
             </TooltipContent>
           </Tooltip>
-          <div className="flex items-center gap-3 group cursor-pointer overflow-hidden opacity-60 hover:opacity-100 transition-opacity">
-            <Settings className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground transition-colors" />
+          <div className="flex items-center gap-3 group cursor-pointer overflow-hidden opacity-40 hover:opacity-100 transition-all p-2 rounded-xl hover:bg-muted/30">
+            <Settings className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground transition-all" />
             {isExpanded && <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground group-hover:text-foreground truncate">Preferences</span>}
           </div>
         </div>
