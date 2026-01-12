@@ -2,7 +2,7 @@ import { DrawEntry, ProgramType } from "@shared/types";
 import { MOCK_DRAWS } from "@shared/mock-canada-data";
 import { parse, format, isValid, parseISO } from "date-fns";
 const CACHE_KEY = "maple_metrics_draw_cache";
-const PROXY_URL = "/api/ircc-proxy";
+const PROXY_URL = "https://www.canada.ca/content/dam/ircc/documents/json/ee_rounds_123_en.json";
 interface IrccDraw {
   drawNumber: string | number;
   drawDate: string;
