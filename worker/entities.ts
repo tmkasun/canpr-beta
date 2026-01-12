@@ -40,32 +40,20 @@ export class CRSProfileEntity extends IndexedEntity<CRSProfile> {
     id: "",
     label: "New Estimate",
     date: new Date().toISOString(),
-    score: 0,
-    age: "25",
-    education: "master",
-    language: "high",
-    experience: "3"
+    score: 0
   };
   static readonly seedData: CRSProfile[] = [
     {
       id: 'demo-1',
       label: 'Demo Profile (Master\'s)',
       date: new Date(Date.now() - 86400000).toISOString(),
-      score: 485,
-      age: '28',
-      education: 'master',
-      language: 'high',
-      experience: '3'
+      score: 485
     },
     {
       id: 'demo-2',
-      label: 'CEC Target (PhD)',
+      label: 'CEC Target (Goal)',
       date: new Date(Date.now() - 7*86400000).toISOString(),
-      score: 536,
-      age: '28',
-      education: 'phd',
-      language: 'high',
-      experience: '2'
+      score: 536
     }
   ];
 }

@@ -40,23 +40,21 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
   try {
     const json = await api<IrccResponse>('/api/ircc-data');
     if (!json || !json.rounds || !Array.isArray(json.rounds)) {
-      throw new Error("Invalid IRCC payload structure");
+      throw new Error("Invalid IRCC payload structure: Missing 'rounds' array");
     }
     const normalized: DrawEntry[] = json.rounds.reduce((acc: DrawEntry[], r, idx) => {
       try {
         if (!r.drawNumber || !r.drawDate) return acc;
         const cleanName = stripHtml(r.drawName || "Express Entry Round");
-        // Refined date parsing: Remove hidden control characters and normalize timezones
         const rawDate = r.drawDate
           .trim()
-          .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width characters
-          .replace(/\s+(EST|EDT|UTC|PST|PDT).*$/, ""); // Strip timezone suffixes
+          .replace(/[\u200B-\u200D\uFEFF]/g, '')
+          .replace(/\s+(EST|EDT|UTC|PST|PDT).*$/, "");
         let dateIso = "";
         const parsedIso = parseISO(rawDate);
         if (isValid(parsedIso)) {
           dateIso = format(parsedIso, "yyyy-MM-dd");
         } else {
-          // Fallback formats for varying IRCC locale strings
           const formats = ["MMMM d, yyyy", "MMM d, yyyy", "yyyy-MM-dd", "dd/MM/yyyy", "d MMMM yyyy"];
           for (const fmt of formats) {
             try {
@@ -70,10 +68,8 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
         }
         if (!dateIso) return acc;
         const crsValue = safeParseInt(r.drawCRS);
-        // Explicit check for valid CRS scores (0-1200) to filter out anomaly records
         if (crsValue <= 0 || crsValue > 1200) return acc;
         const entry: DrawEntry = {
-          // Absolute uniqueness: prefix + drawNumber + index to prevent React key collisions
           id: `ircc-${safeParseInt(r.drawNumber, idx)}-idx-${idx}`,
           drawNumber: safeParseInt(r.drawNumber),
           date: dateIso,
@@ -84,7 +80,7 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
         };
         acc.push(entry);
       } catch (innerError) {
-        console.warn("[DATA SERVICE] Skipping corrupted record:", innerError);
+        console.warn("[DATA SERVICE] Skipping record due to parsing error:", innerError instanceof Error ? innerError.message : String(innerError));
       }
       return acc;
     }, []);
@@ -99,7 +95,8 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
     }
     return sorted;
   } catch (error) {
-    console.error("[DATA SERVICE] Fetch failed, attempting cache:", error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`[DATA SERVICE] Fetch failed: ${errorMsg}. Falling back to cache/mock.`);
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
       try {

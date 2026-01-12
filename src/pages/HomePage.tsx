@@ -57,7 +57,6 @@ export function HomePage() {
   const previousDraw = useMemo(() => filteredDraws[1] ?? null, [filteredDraws]);
   const latestScore = latestDraw?.crsScore ?? 0;
   const prevScore = previousDraw?.crsScore ?? 0;
-  // Refined trend calculation to handle zero-values or missing history
   const crsDiff = useMemo(() => {
     if (latestScore <= 0 || prevScore <= 0) return 0;
     return latestScore - prevScore;
@@ -175,7 +174,7 @@ export function HomePage() {
             </Select>
             <Link to="/calculator" className="w-full">
               <Button size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-xl shadow-primary/20 px-8 font-bold rounded-xl h-12">
-                Optimize My Profile
+                Update My Score
               </Button>
             </Link>
           </div>
@@ -202,10 +201,10 @@ export function HomePage() {
               title="Personal Status"
               value={userScore !== null ? userScore : "N/A"}
               icon={userScore !== null ? UserCheck : Zap}
-              description={userScore !== null ? `Vs ${benchmarkLabel}` : "No Profile Set"}
+              description={userScore !== null ? `Vs ${benchmarkLabel}` : "No Score Set"}
               trend={personalGap !== null ? { value: Math.abs(personalGap), isUp: isQualified } : undefined}
               link="/calculator"
-              linkText={userScore !== null ? "Optimize Profile" : "Run Calculation"}
+              linkText={userScore !== null ? "Optimize Score" : "Run Comparison"}
               className={cn(userScore === null && "border-dashed border-muted-foreground/30")}
             />
           )}
