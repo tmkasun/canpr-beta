@@ -68,6 +68,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.get('/api/profiles', async (c) => {
     const cq = c.req.query('cursor');
     const lq = c.req.query('limit');
+    await CRSProfileEntity.ensureSeed(c.env);
     const page = await CRSProfileEntity.list(c.env, cq ?? null, lq ? Math.max(1, (Number(lq) | 0)) : undefined);
     return ok(c, page);
   });
