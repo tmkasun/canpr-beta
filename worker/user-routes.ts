@@ -8,22 +8,39 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   // PROXIED IRCC DATA (Bypasses CORS)
   app.get('/api/ircc-data', async (c) => {
     const IRCC_JSON_URL = "https://www.canada.ca/content/dam/ircc/documents/json/ee_rounds_123_en.json";
+    // Set a timeout signal for the upstream fetch to avoid hanging worker
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
     try {
       const response = await fetch(IRCC_JSON_URL, {
+        signal: controller.signal,
         headers: {
-          'User-Agent': 'MapleMetrics/1.0 (Cloudflare Worker)',
-          'Accept': 'application/json'
+          'User-Agent': 'MapleMetrics/1.0 (Cloudflare Worker; +https://maplemetrics.ca)',
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
         },
       });
+      clearTimeout(timeoutId);
       if (!response.ok) {
-        console.error(`Upstream IRCC Error: ${response.status} ${response.statusText}`);
-        return bad(c, `Failed to fetch from IRCC: ${response.statusText}`);
+        console.error(`[IRCC PROXY] Upstream failure: ${response.status} ${response.statusText}`);
+        // Return descriptive status to client
+        return c.json({ 
+          success: false, 
+          error: `IRCC Gateway responded with ${response.status}`,
+          status: response.status 
+        }, 502);
       }
       const data = await response.json();
       return ok(c, data);
     } catch (error) {
-      console.error('IRCC Proxy Exception:', error);
-      return bad(c, 'Internal error proxying IRCC data');
+      clearTimeout(timeoutId);
+      const isTimeout = error instanceof Error && error.name === 'AbortError';
+      console.error(`[IRCC PROXY] ${isTimeout ? 'Timeout' : 'Exception'}:`, error);
+      return c.json({ 
+        success: false, 
+        error: isTimeout ? 'Upstream IRCC gateway timed out' : 'Internal error proxying IRCC data',
+        detail: error instanceof Error ? error.message : String(error)
+      }, isTimeout ? 504 : 500);
     }
   });
   // USERS
@@ -47,29 +64,6 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const page = await ChatBoardEntity.list(c.env, cq ?? null, lq ? Math.max(1, (Number(lq) | 0)) : undefined);
     return ok(c, page);
   });
-  app.post('/api/chats', async (c) => {
-    const { title } = (await c.req.json()) as { title?: string };
-    if (!title?.trim()) return bad(c, 'title required');
-    const created = await ChatBoardEntity.create(c.env, { id: crypto.randomUUID(), title: title.trim(), messages: [] });
-    return ok(c, { id: created.id, title: created.title });
-  });
-  // MESSAGES
-  app.get('/api/chats/:chatId/messages', async (c) => {
-    const chat = new ChatBoardEntity(c.env, c.req.param('chatId'));
-    if (!await chat.exists()) return notFound(c, 'chat not found');
-    return ok(c, await chat.listMessages());
-  });
-  app.post('/api/chats/:chatId/messages', async (c) => {
-    const chatId = c.req.param('chatId');
-    const { userId, text } = (await c.req.json()) as { userId?: string; text?: string };
-    if (!isStr(userId) || !text?.trim()) return bad(c, 'userId and text required');
-    const chat = new ChatBoardEntity(c.env, chatId);
-    if (!await chat.exists()) return notFound(c, 'chat not found');
-    return ok(c, await chat.sendMessage(userId, text.trim()));
-  });
-  // DELETE
-  app.delete('/api/users/:id', async (c) => ok(c, { id: c.req.param('id'), deleted: await UserEntity.delete(c.env, c.req.param('id')) }));
-  app.delete('/api/chats/:id', async (c) => ok(c, { id: c.req.param('id'), deleted: await ChatBoardEntity.delete(c.env, c.req.param('id')) }));
   // CRS PROFILES
   app.get('/api/profiles', async (c) => {
     const cq = c.req.query('cursor');
@@ -87,4 +81,5 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const id = c.req.param('id');
     return ok(c, { id, deleted: await CRSProfileEntity.delete(c.env, id) });
   });
+  app.delete('/api/users/:id', async (c) => ok(c, { id: c.req.param('id'), deleted: await UserEntity.delete(c.env, c.req.param('id')) }));
 }

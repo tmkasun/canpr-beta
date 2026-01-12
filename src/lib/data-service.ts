@@ -32,20 +32,21 @@ function determineProgramType(name: string): ProgramType {
 }
 function safeParseInt(val: string | number | undefined, fallback = 0): number {
   if (val === undefined || val === null) return fallback;
-  const str = val.toString().replace(/[^0-9]/g, "").trim();
-  const parsed = parseInt(str, 10);
+  // Handle strings with commas (thousand separators) or extra whitespace
+  const cleanStr = val.toString().replace(/,/g, "").replace(/[^0-9.]/g, "").trim();
+  const parsed = parseInt(cleanStr, 10);
   return isNaN(parsed) ? fallback : parsed;
 }
 export async function fetchLatestDraws(): Promise<DrawEntry[]> {
   try {
     const json = await api<IrccResponse>('/api/ircc-data');
-    if (!json.rounds || !Array.isArray(json.rounds)) {
+    if (!json || !json.rounds || !Array.isArray(json.rounds)) {
       throw new Error("Invalid IRCC payload structure");
     }
     const normalized: DrawEntry[] = json.rounds.reduce((acc: DrawEntry[], r, idx) => {
       try {
         if (!r.drawNumber || !r.drawDate) return acc;
-        const cleanName = stripHtml(r.drawName || "");
+        const cleanName = stripHtml(r.drawName || "Express Entry Round");
         const rawDate = r.drawDate.trim();
         let dateIso = "";
         const parsedIso = parseISO(rawDate);
@@ -65,7 +66,7 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
         }
         if (!dateIso) return acc;
         const entry: DrawEntry = {
-          id: `ircc-${safeParseInt(r.drawNumber) || idx}`,
+          id: `ircc-${safeParseInt(r.drawNumber, idx)}`,
           drawNumber: safeParseInt(r.drawNumber),
           date: dateIso,
           programType: determineProgramType(cleanName),
@@ -73,9 +74,12 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
           crsScore: safeParseInt(r.drawCRS),
           description: cleanName
         };
-        acc.push(entry);
+        // Final sanity check for critical fields
+        if (entry.drawNumber > 0 && entry.crsScore > 0) {
+          acc.push(entry);
+        }
       } catch (innerError) {
-        console.warn("[DATA SERVICE] Skipping malformed record:", innerError);
+        // Silently skip corrupted records in the feed
       }
       return acc;
     }, []);
@@ -90,14 +94,17 @@ export async function fetchLatestDraws(): Promise<DrawEntry[]> {
     }
     return sorted;
   } catch (error) {
-    console.error("[DATA SERVICE] Fetch failed, attempting cache fallback.");
-    try {
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      try {
         const parsed = JSON.parse(cached);
-        if (parsed?.data && Array.isArray(parsed.data)) return parsed.data;
-      }
-    } catch { /* Ignore */ }
+        if (parsed?.data && Array.isArray(parsed.data)) {
+          console.warn("[DATA SERVICE] Fetch failed, using cached data.", error);
+          return parsed.data;
+        }
+      } catch { /* Cache corrupted, fall through */ }
+    }
+    console.error("[DATA SERVICE] Fetch failed and no cache available. Using mock fallback.", error);
     return MOCK_DRAWS.sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
   }
 }
