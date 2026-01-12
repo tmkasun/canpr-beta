@@ -1,8 +1,9 @@
 import React from "react";
-import { LucideIcon, TrendingUp, TrendingDown } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LucideIcon, TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 interface StatCardProps {
   title: string;
   value: string | number;
@@ -12,6 +13,8 @@ interface StatCardProps {
     value: number;
     isUp: boolean;
   };
+  link?: string;
+  linkText?: string;
   className?: string;
 }
 export function StatCard({
@@ -20,6 +23,8 @@ export function StatCard({
   icon: Icon,
   description,
   trend,
+  link,
+  linkText,
   className
 }: StatCardProps) {
   return (
@@ -29,7 +34,7 @@ export function StatCard({
       className="h-full"
     >
       <Card className={cn(
-        "overflow-hidden border border-transparent shadow-soft transition-all duration-300 hover:shadow-md hover:border-red-200/50 dark:hover:border-red-900/50 h-full group bg-card",
+        "overflow-hidden border border-transparent shadow-soft transition-all duration-300 hover:shadow-md hover:border-red-200/50 dark:hover:border-red-900/50 h-full group bg-card flex flex-col",
         className
       )}>
         <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
@@ -40,7 +45,7 @@ export function StatCard({
             <Icon className="h-4 w-4 text-red-600 group-hover:text-white transition-colors duration-300" />
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-1">
           <div className="text-3xl font-black tracking-tight text-foreground tabular-nums">
             {value}
           </div>
@@ -65,6 +70,17 @@ export function StatCard({
             </div>
           )}
         </CardContent>
+        {link && (
+          <CardFooter className="px-6 py-3 border-t border-dashed bg-muted/5 group-hover:bg-muted/10 transition-colors">
+            <Link 
+              to={link} 
+              className="flex items-center justify-between w-full text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-red-600 transition-colors group/link"
+            >
+              <span>{linkText || "View Details"}</span>
+              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover/link:translate-x-1" />
+            </Link>
+          </CardFooter>
+        )}
       </Card>
     </motion.div>
   );

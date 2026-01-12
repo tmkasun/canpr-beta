@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Calculator, Info, CheckCircle2, Save, Trash2, History, ArrowRight, Sparkles, Loader2, Lightbulb, AlertTriangle } from 'lucide-react';
+import { Calculator, Info, CheckCircle2, Save, Trash2, History, ArrowRight, Sparkles, Loader2, Lightbulb, AlertTriangle, PenLine, Settings2 } from 'lucide-react';
 import { useDrawData } from '@/hooks/use-draw-data';
 import { api } from '@/lib/api-client';
 import { CRSProfile } from '@shared/types';
@@ -19,6 +19,8 @@ import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 export function CalculatorPage() {
   const { latestDraw, isLoading: drawsLoading } = useDrawData();
+  const [isManualMode, setIsManualMode] = useState(false);
+  const [manualScore, setManualScore] = useState<string>("500");
   const [age, setAge] = useState<string>("25");
   const [edu, setEdu] = useState<string>("master");
   const [lang, setLang] = useState<string>("high");
@@ -29,6 +31,7 @@ export function CalculatorPage() {
   const [isLoading, setIsLoading] = useState(true);
   const latestCutoff = latestDraw?.crsScore ?? 500;
   const score = useMemo(() => {
+    if (isManualMode) return parseInt(manualScore) || 0;
     let total = 0;
     const ageVal = parseInt(age) || 0;
     if (ageVal >= 20 && ageVal <= 29) total += 110;
@@ -44,7 +47,7 @@ export function CalculatorPage() {
     else if (exp === "2") total += 38;
     else if (exp === "1") total += 25;
     return total;
-  }, [age, edu, lang, exp]);
+  }, [age, edu, lang, exp, isManualMode, manualScore]);
   const qualifies = score >= latestCutoff;
   const gap = latestCutoff - score;
   useEffect(() => {
@@ -65,12 +68,12 @@ export function CalculatorPage() {
     try {
       const newProfile: CRSProfile = {
         id: crypto.randomUUID(),
-        label: label.trim() || "My Estimate",
+        label: label.trim() || (isManualMode ? "Manual Score" : "My Estimate"),
         score,
-        age,
-        education: edu,
-        language: lang,
-        experience: exp,
+        age: isManualMode ? "N/A" : age,
+        education: isManualMode ? "Manual" : edu,
+        language: isManualMode ? "Manual" : lang,
+        experience: isManualMode ? "Manual" : exp,
         date: new Date().toISOString()
       };
       await api('/api/profiles', { method: 'POST', body: JSON.stringify(newProfile) });
@@ -92,113 +95,165 @@ export function CalculatorPage() {
     }
   };
   const loadProfile = (p: CRSProfile) => {
-    setAge(p.age);
-    setEdu(p.education);
-    setLang(p.language);
-    setExp(p.experience);
+    if (p.education === "Manual") {
+      setIsManualMode(true);
+      setManualScore(p.score.toString());
+    } else {
+      setIsManualMode(false);
+      setAge(p.age);
+      setEdu(p.education);
+      setLang(p.language);
+      setExp(p.experience);
+    }
     setLabel(p.label);
     toast.info(`Loaded profile: ${p.label}`);
   };
   return (
     <AppLayout container>
       <div className="space-y-8 animate-fade-in">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">CRS Score Calculator</h1>
-          <p className="text-muted-foreground">Detailed Comprehensive Ranking System simulation based on latest IRCC trends.</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">CRS Score Calculator</h1>
+            <p className="text-muted-foreground">Detailed Comprehensive Ranking System simulation based on latest IRCC trends.</p>
+          </div>
+          <div className="flex p-1 bg-muted rounded-xl">
+             <Button 
+               variant={!isManualMode ? "secondary" : "ghost"} 
+               size="sm" 
+               className="rounded-lg font-bold text-xs"
+               onClick={() => setIsManualMode(false)}
+             >
+               <Settings2 className="mr-2 h-3.5 w-3.5" /> Wizard
+             </Button>
+             <Button 
+               variant={isManualMode ? "secondary" : "ghost"} 
+               size="sm" 
+               className="rounded-lg font-bold text-xs"
+               onClick={() => setIsManualMode(true)}
+             >
+               <PenLine className="mr-2 h-3.5 w-3.5" /> Manual
+             </Button>
+          </div>
         </div>
         <div className="grid gap-8 grid-cols-1 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
-            <Card className="shadow-soft border-none">
-              <CardHeader>
+            <Card className="shadow-soft border-none overflow-hidden">
+              <CardHeader className="bg-muted/10 pb-6">
                 <CardTitle className="text-lg flex items-center gap-2 text-foreground">
                   <Calculator className="h-5 w-5 text-red-600" />
-                  Profile Configuration
+                  {isManualMode ? "Direct Score Entry" : "Profile Configuration"}
                 </CardTitle>
-                <CardDescription>Simulate your entry criteria to see how you rank</CardDescription>
+                <CardDescription>
+                  {isManualMode ? "Enter a specific score for quick benchmarking" : "Simulate your entry criteria to see how you rank"}
+                </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-6 pt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="label" className="text-xs font-bold uppercase tracking-wider opacity-70">Label</Label>
                     <Input id="label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g., Optimistic Goal" />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="age" className="text-xs font-bold uppercase tracking-wider opacity-70">Current Age</Label>
-                    <Input id="age" type="number" value={age} onChange={(e) => setAge(e.target.value)} min="18" max="100" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="edu" className="text-xs font-bold uppercase tracking-wider opacity-70">Highest Degree</Label>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="size-3 cursor-help text-muted-foreground" />
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-xs">
-                            <p>Degrees must be accompanied by an Educational Credential Assessment (ECA) for non-Canadian credentials.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                  {isManualMode && (
+                    <div className="space-y-2">
+                      <Label htmlFor="manualScore" className="text-xs font-bold uppercase tracking-wider opacity-70">Manual CRS Points</Label>
+                      <Input 
+                        id="manualScore" 
+                        type="number" 
+                        value={manualScore} 
+                        onChange={(e) => setManualScore(e.target.value)} 
+                        min="0" 
+                        max="1200"
+                        className="font-bold text-lg text-red-600 h-11" 
+                      />
                     </div>
-                    <Select value={edu} onValueChange={setEdu}>
-                      <SelectTrigger id="edu"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="phd">Doctorate (PhD)</SelectItem>
-                        <SelectItem value="master">Master's Degree</SelectItem>
-                        <SelectItem value="bachelor">Bachelor's Degree (3+ yrs)</SelectItem>
-                        <SelectItem value="college">College Diploma (2 yrs)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lang" className="text-xs font-bold uppercase tracking-wider opacity-70">Language Proficiency</Label>
-                    <Select value={lang} onValueChange={setLang}>
-                      <SelectTrigger id="lang"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="high">CLB 9+ (Expert)</SelectItem>
-                        <SelectItem value="mid">CLB 7 - 8 (Fluent)</SelectItem>
-                        <SelectItem value="low">Below CLB 7 (Basic)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  )}
+                  {!isManualMode && (
+                    <div className="space-y-2">
+                      <Label htmlFor="age" className="text-xs font-bold uppercase tracking-wider opacity-70">Current Age</Label>
+                      <Input id="age" type="number" value={age} onChange={(e) => setAge(e.target.value)} min="18" max="100" />
+                    </div>
+                  )}
                 </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="exp" className="text-xs font-bold uppercase tracking-wider opacity-70">Canadian Experience</Label>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="size-3 cursor-help text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Full-time work experience in Canada in a TEER 0, 1, 2, or 3 occupation.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <Select value={exp} onValueChange={setExp}>
-                    <SelectTrigger id="exp"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="3">3+ Years</SelectItem>
-                      <SelectItem value="2">2 Years</SelectItem>
-                      <SelectItem value="1">1 Year</SelectItem>
-                      <SelectItem value="0">Less than 1 Year</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                {!isManualMode && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }} 
+                    animate={{ opacity: 1, height: "auto" }}
+                    className="space-y-6 overflow-hidden"
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="edu" className="text-xs font-bold uppercase tracking-wider opacity-70">Highest Degree</Label>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="size-3 cursor-help text-muted-foreground" />
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <p>Degrees must be accompanied by an Educational Credential Assessment (ECA) for non-Canadian credentials.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                        <Select value={edu} onValueChange={setEdu}>
+                          <SelectTrigger id="edu"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="phd">Doctorate (PhD)</SelectItem>
+                            <SelectItem value="master">Master's Degree</SelectItem>
+                            <SelectItem value="bachelor">Bachelor's Degree (3+ yrs)</SelectItem>
+                            <SelectItem value="college">College Diploma (2 yrs)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="lang" className="text-xs font-bold uppercase tracking-wider opacity-70">Language Proficiency</Label>
+                        <Select value={lang} onValueChange={setLang}>
+                          <SelectTrigger id="lang"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="high">CLB 9+ (Expert)</SelectItem>
+                            <SelectItem value="mid">CLB 7 - 8 (Fluent)</SelectItem>
+                            <SelectItem value="low">Below CLB 7 (Basic)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="exp" className="text-xs font-bold uppercase tracking-wider opacity-70">Canadian Experience</Label>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="size-3 cursor-help text-muted-foreground" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Full-time work experience in Canada in a TEER 0, 1, 2, or 3 occupation.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      <Select value={exp} onValueChange={setExp}>
+                        <SelectTrigger id="exp"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="3">3+ Years</SelectItem>
+                          <SelectItem value="2">2 Years</SelectItem>
+                          <SelectItem value="1">1 Year</SelectItem>
+                          <SelectItem value="0">Less than 1 Year</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </motion.div>
+                )}
                 <Button
                   onClick={handleSave}
                   disabled={isSaving}
-                  className="w-full bg-red-600 hover:bg-red-700 text-white gap-2 h-11"
+                  className="w-full bg-red-600 hover:bg-red-700 text-white gap-2 h-11 shadow-lg shadow-red-600/20"
                 >
                   {isSaving ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />}
-                  {isSaving ? "Saving..." : "Save Calculation"}
+                  {isSaving ? "Saving..." : "Save Benchmark Profile"}
                 </Button>
               </CardContent>
             </Card>
-            <Card className="shadow-soft border-none overflow-hidden flex flex-col h-[400px]">
+            <Card className="shadow-soft border-none overflow-hidden flex flex-col h-[350px]">
               <CardHeader className="bg-muted/30 pb-3">
                 <CardTitle className="text-xs font-black uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
                   <History className="h-4 w-4 text-red-600" />
@@ -313,29 +368,6 @@ export function CalculatorPage() {
                 </CardContent>
               </Card>
             </motion.div>
-            <Card className="border-none shadow-soft bg-red-50 dark:bg-red-950/10">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <Lightbulb className="size-4 text-red-600" />
-                  Target Analysis
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="text-xs text-muted-foreground leading-relaxed">
-                  {gap > 0 ? (
-                    <>
-                      Improving your <strong>Language CLB</strong> from Mid to High could add up to <strong>36 points</strong>, 
-                      closing your {gap} point gap completely.
-                    </>
-                  ) : (
-                    <>
-                      Your profile is competitive. Consider obtaining a <strong>Provincial Nomination</strong> to add a 
-                      guaranteed <strong>600 points</strong> and secure an ITA in the next round.
-                    </>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Users,
   Calendar,
@@ -7,7 +7,8 @@ import {
   ArrowRight,
   Bell,
   RefreshCcw,
-  Clock
+  Clock,
+  UserCheck
 } from 'lucide-react';
 import { format, parseISO, differenceInDays, formatDistanceToNow, isValid } from 'date-fns';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -20,9 +21,22 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api-client';
+import { CRSProfile } from '@shared/types';
 import { cn } from '@/lib/utils';
 export function HomePage() {
-  const { draws, latestDraw, previousDraw, totalItasYearToDate, isLoading, isFetching, currentYear, dataUpdatedAt } = useDrawData();
+  const { draws, latestDraw, previousDraw, totalItasYearToDate, averageCrsAllTime, isLoading, isFetching, currentYear, dataUpdatedAt } = useDrawData();
+  const { data: profilesData } = useQuery({
+    queryKey: ['profiles'],
+    queryFn: () => api<{ items: CRSProfile[] }>('/api/profiles'),
+  });
+  const latestProfile = useMemo(() => {
+    if (!profilesData?.items || profilesData.items.length === 0) return null;
+    return [...profilesData.items].sort((a, b) => 
+      parseISO(b.date).getTime() - parseISO(a.date).getTime()
+    )[0];
+  }, [profilesData]);
   const latestScore = latestDraw?.crsScore ?? 0;
   const prevScore = previousDraw?.crsScore ?? 0;
   const isNewDraw = latestDraw && isValid(parseISO(latestDraw.date))
@@ -32,7 +46,12 @@ export function HomePage() {
     ? format(parseISO(latestDraw.date), 'MMM d, yyyy')
     : '---';
   const crsDiff = latestScore - prevScore;
-  const isUpTrend = crsDiff < 0; // Negative difference in score is "Up" for candidates
+  const isUpTrend = crsDiff < 0;
+  // Personal score calculations
+  const userScore = latestProfile?.score ?? averageCrsAllTime;
+  const scoreLabel = latestProfile ? "Your Saved Score" : "Historical Average";
+  const personalGap = userScore - latestScore;
+  const isQualified = personalGap >= 0;
   if (isLoading && draws.length === 0) {
     return (
       <AppLayout container>
@@ -108,8 +127,21 @@ export function HomePage() {
             icon={Users}
             description="Total candidates invited YTD"
           />
-          <StatCard title="Draw Published" value={lastDate} icon={Calendar} description="Latest official update" />
-          <StatCard title="System Health" value="Active" icon={Activity} description="API Gateway Operational" />
+          <StatCard 
+            title="Your Status" 
+            value={userScore} 
+            icon={UserCheck} 
+            description={scoreLabel}
+            trend={latestScore > 0 ? { value: Math.abs(personalGap), isUp: isQualified } : undefined}
+            link="/calculator"
+            linkText="Update Profile"
+          />
+          <StatCard 
+            title="Next Draw" 
+            value={lastDate} 
+            icon={Calendar} 
+            description="Anticipated Window" 
+          />
         </div>
         <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
           <ScoreTrendChart data={draws} isLoading={isLoading && draws.length === 0} />

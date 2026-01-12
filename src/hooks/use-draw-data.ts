@@ -22,6 +22,11 @@ export function useDrawData() {
   const latestDraw = useMemo(() => draws[0] ?? null, [draws]);
   const previousDraw = useMemo(() => draws[1] ?? null, [draws]);
   const currentYear = useMemo(() => new Date().getFullYear(), []);
+  const averageCrsAllTime = useMemo(() => {
+    if (draws.length === 0) return 0;
+    const sum = draws.reduce((acc, d) => acc + d.crsScore, 0);
+    return Math.round(sum / draws.length);
+  }, [draws]);
   const totalItasYearToDate = useMemo(() => {
     const yearStart = startOfYear(new Date());
     return draws
@@ -42,6 +47,7 @@ export function useDrawData() {
     previousDraw,
     totalItasYearToDate,
     currentYear,
+    averageCrsAllTime,
     isInitialLoading: query.isLoading && !query.isFetching,
     dataUpdatedAt: query.dataUpdatedAt,
   };
