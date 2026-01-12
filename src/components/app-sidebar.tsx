@@ -75,14 +75,18 @@ export function AppSidebar(): JSX.Element {
       </SidebarContent>
       <SidebarFooter className="border-t p-4">
         <div className="flex flex-col gap-4 px-2 overflow-hidden">
-          {isExpanded ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-2 cursor-help group">
-                  <div className={cn(
-                    "size-2 shrink-0 rounded-full transition-all duration-500",
-                    isFetching ? "bg-red-600 animate-pulse" : "bg-emerald-500"
-                  )} />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className={cn(
+                "flex items-center cursor-help group",
+                isExpanded ? "gap-2" : "justify-center"
+              )}>
+                <div className={cn(
+                  "size-2 shrink-0 rounded-full transition-all duration-500",
+                  isFetching ? "bg-red-600 animate-pulse" : "bg-emerald-500",
+                  isExpanded ? "" : "mx-auto"
+                )} />
+                {isExpanded && (
                   <div className="flex flex-col truncate">
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate">
                       {isFetching ? "Refreshing..." : "IRCC Secure Link"}
@@ -91,18 +95,13 @@ export function AppSidebar(): JSX.Element {
                       {dataUpdatedAt ? format(new Date(dataUpdatedAt), "HH:mm:ss") : "Connecting..."}
                     </span>
                   </div>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                <p className="text-xs">Securely connected to the official IRCC data gateway.</p>
-              </TooltipContent>
-            </Tooltip>
-          ) : (
-             <div className={cn(
-               "size-2 shrink-0 rounded-full mx-auto",
-               isFetching ? "bg-red-600 animate-pulse" : "bg-emerald-500"
-             )} />
-          )}
+                )}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p className="text-xs">Securely connected to the official IRCC data gateway.</p>
+            </TooltipContent>
+          </Tooltip>
           <div className="flex items-center gap-3 group cursor-pointer overflow-hidden">
             <Settings className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground transition-colors" />
             {isExpanded && <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors truncate">Preferences</span>}
